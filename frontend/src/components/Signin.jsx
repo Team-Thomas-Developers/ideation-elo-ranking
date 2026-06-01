@@ -8,7 +8,7 @@ const Signin = () => {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const { signInUser } = UserAuth()
+  const { signInUser, signInWithGoogle } = UserAuth()
   const navigate = useNavigate()
 
   const handleSignIn = async (e) => {
@@ -61,6 +61,16 @@ const Signin = () => {
         </div>
 
         <button type="submit">Sign In</button>
+
+        <div style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={signInWithGoogle}
+            style={{ width: '100%' }}
+          >
+            Sign In with Google
+          </button>
+        </div>
 
         {error && <p>{error}</p>}
       </form>
