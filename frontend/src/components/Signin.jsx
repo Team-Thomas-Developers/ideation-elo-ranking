@@ -1,35 +1,35 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { UserAuth } from "../context/AuthContext";
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { UserAuth } from '../context/AuthContext'
 
 const Signin = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const { signInUser } = UserAuth();
-  const navigate = useNavigate();
+  const { signInUser } = UserAuth()
+  const navigate = useNavigate()
 
   const handleSignIn = async (e) => {
-    e.preventDefault();
-    const { session, error } = await signInUser(email, password);
+    e.preventDefault()
+    const { session, error } = await signInUser(email, password)
 
     if (error) {
-      setError(error);
+      setError(error)
 
       setTimeout(() => {
-        setError("");
-      }, 3000);
+        setError('')
+      }, 3000)
     } else {
-      navigate("/dashboard");
+      navigate('/dashboard')
     }
 
     if (session) {
-      closeModal();
-      setError("");
+      closeModal()
+      setError('')
     }
-  };
+  }
 
   return (
     <div>
@@ -65,7 +65,7 @@ const Signin = () => {
         {error && <p>{error}</p>}
       </form>
     </div>
-  );
-};
+  )
+}
 
-export default Signin;
+export default Signin

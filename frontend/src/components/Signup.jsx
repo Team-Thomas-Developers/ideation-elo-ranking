@@ -1,34 +1,34 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { UserAuth } from "../context/AuthContext";
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { UserAuth } from '../context/AuthContext'
 
 const Signup = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const { signUpNewUser } = UserAuth();
-  const navigate = useNavigate();
+  const { signUpNewUser } = UserAuth()
+  const navigate = useNavigate()
 
   const handleSignUp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
 
     try {
-      const result = await signUpNewUser(email, password);
+      const result = await signUpNewUser(email, password)
 
       if (result.success) {
-        navigate("/dashboard");
+        navigate('/dashboard')
       } else {
-        setError(result.error.message);
+        setError(result.error.message)
       }
     } catch (err) {
-      setError("An unexpected error occurred.");
+      setError('An unexpected error occurred.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div>
@@ -66,7 +66,7 @@ const Signup = () => {
         {error && <p>{error}</p>}
       </form>
     </div>
-  );
-};
+  )
+}
 
-export default Signup;
+export default Signup
