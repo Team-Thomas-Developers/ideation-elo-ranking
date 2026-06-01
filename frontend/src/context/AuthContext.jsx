@@ -61,11 +61,11 @@ export const AuthContextProvider = ({ children }) => {
   // Sign in with Google
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
+      provider: 'google',
+    })
 
-    if (error) console.log(error);
-  };
+    if (error) console.log(error)
+  }
 
   // Sign out
   async function signOut() {

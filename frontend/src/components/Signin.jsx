@@ -8,8 +8,8 @@ const Signin = () => {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const { signInUser, signInWithGoogle } = UserAuth();
-  const navigate = useNavigate();
+  const { signInUser, signInWithGoogle } = UserAuth()
+  const navigate = useNavigate()
 
   const handleSignIn = async (e) => {
     e.preventDefault()
@@ -63,7 +63,11 @@ const Signin = () => {
         <button type="submit">Sign In</button>
 
         <div style={{ marginTop: 16 }}>
-          <button type="button" onClick={signInWithGoogle} style={{ width: "100%" }}>
+          <button
+            type="button"
+            onClick={signInWithGoogle}
+            style={{ width: '100%' }}
+          >
             Sign In with Google
           </button>
         </div>
