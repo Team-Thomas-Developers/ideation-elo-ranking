@@ -2,9 +2,7 @@ import { supabase } from '../supabaseClient'
 
 function requireSupabase() {
   if (!supabase) {
-    throw new Error(
-      'Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY',
-    )
+    throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY')
   }
 
   return supabase
