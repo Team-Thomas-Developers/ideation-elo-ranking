@@ -7,5 +7,5 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in .env')
 }
 
-// Anon key client — safe to use in the browser, respects Row Level Security
+// The anonymous browser key respects Row Level Security.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
