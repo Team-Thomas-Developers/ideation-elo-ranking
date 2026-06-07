@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 const router = Router();
 
-// get /api/ideas — ideas with their current rankings, best rank first
+// ideas ranked by score, best first
 router.get('/', async (_req, res) => {
   const { data, error } = await supabase
     .from('ideas')

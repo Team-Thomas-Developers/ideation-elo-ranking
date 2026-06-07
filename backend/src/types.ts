@@ -1,4 +1,4 @@
-// table shapes, kept in one place so routes and services agree on columns
+// table shapes shared by routes and services
 
 export interface Idea {
   id: string;
@@ -20,7 +20,7 @@ export interface Matchup {
   user_id: string;
   idea_a: string; // fk -> ideas.id
   idea_b: string; // fk -> ideas.id
-  status: boolean; // false = awaiting a vote, true = voted
+  status: boolean; // false = open, true = voted
 }
 
 export interface Vote {

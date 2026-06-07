@@ -4,7 +4,7 @@ import { Idea, Matchup } from '../types';
 
 const router = Router();
 
-// fisher-yates shuffle, returns a new array
+// shuffle a copy of the array
 function shuffle<T>(items: T[]): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
@@ -14,7 +14,7 @@ function shuffle<T>(items: T[]): T[] {
   return out;
 }
 
-// attach full idea objects to each matchup so the client renders without a second call. done in js to avoid depending on supabase fk constraint names
+// add the full idea objects onto each matchup
 function hydrate(matchups: Matchup[], ideasById: Map<string, Idea>) {
   return matchups.map((m) => ({
     id: m.id,
@@ -26,7 +26,7 @@ function hydrate(matchups: Matchup[], ideasById: Map<string, Idea>) {
   }));
 }
 
-// get /api/matchups?userId=<uuid>&roundId=<uuid> — this user's pairings for the round, generated on first request. roundId defaults to the active round, each user gets their own random unique pairings
+// this user's pairings for a round, made on first request (roundId defaults to the active round)
 router.get('/', async (req, res) => {
   try {
     const userId = req.query.userId as string | undefined;
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
     if (ideasError) throw ideasError;
     const ideasById = new Map((ideas as Idea[]).map((i) => [i.id, i]));
 
-    // idempotent: if this user already has matchups for the round, return them
+    // already made? return them
     const { data: existing, error: existingError } = await supabase
       .from('matchups')
       .select('id, round_id, user_id, idea_a, idea_b, status')
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
       return;
     }
 
-    // pair shuffled ideas, a leftover odd idea sits this round out
+    // pair up shuffled ideas, an odd one out sits the round
     const order = shuffle(ideas as Idea[]);
     const rows = [];
     for (let i = 0; i + 1 < order.length; i += 2) {

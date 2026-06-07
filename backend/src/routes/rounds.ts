@@ -4,7 +4,7 @@ import { Round } from '../types';
 
 const router = Router();
 
-// get /api/rounds — list rounds, newest first
+// list rounds, newest first
 router.get('/', async (_req, res) => {
   const { data, error } = await supabase
     .from('rounds')
@@ -18,7 +18,7 @@ router.get('/', async (_req, res) => {
   res.json(data);
 });
 
-// post /api/rounds — open a new round, closing any active one first so there's a single active round, then create the next round_num
+// open a new round, closing any active one first
 router.post('/', async (_req, res) => {
   try {
     const { error: closeError } = await supabase
