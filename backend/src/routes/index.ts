@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { supabase } from '../lib/supabase';
+import rounds from './rounds';
+import matchups from './matchups';
+import votes from './votes';
+import ideas from './ideas';
 
 const router = Router();
 
@@ -7,11 +10,9 @@ router.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Example: fetch all rows from a table
-// router.get('/items', async (_req, res) => {
-//   const { data, error } = await supabase.from('your_table').select('*');
-//   if (error) return res.status(500).json({ error: error.message });
-//   res.json(data);
-// });
+router.use('/rounds', rounds);
+router.use('/matchups', matchups);
+router.use('/votes', votes);
+router.use('/ideas', ideas);
 
 export default router;
