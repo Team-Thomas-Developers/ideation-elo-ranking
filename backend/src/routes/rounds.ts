@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { Round } from '../types';
+import { getAuthenticatedUser } from '../lib/auth';
 
 const router = Router();
 
@@ -16,6 +17,84 @@ router.get('/', async (_req, res) => {
     return;
   }
   res.json(data);
+});
+
+// Active round, aggregate progress, and the signed-in user's assigned matchups.
+router.get('/current', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    const { data: round, error: roundError } = await supabase
+      .from('rounds')
+      .select('id, round_num, status')
+      .eq('status', true)
+      .order('round_num', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (roundError) throw roundError;
+    if (!round) {
+      res.status(404).json({ error: 'No active round' });
+      return;
+    }
+
+    const { data: matchups, error: matchupsError } = await supabase
+      .from('matchups')
+      .select('id, user_id, idea_a, idea_b, status')
+      .eq('round_id', round.id);
+    if (matchupsError) throw matchupsError;
+
+    const allMatchups = matchups ?? [];
+    const ideaIds = [
+      ...new Set(allMatchups.flatMap((matchup) => [matchup.idea_a, matchup.idea_b])),
+    ];
+    const matchupIds = allMatchups.map((matchup) => matchup.id);
+
+    const [
+      { data: ideas, error: ideasError },
+      { data: votes, error: votesError },
+    ] = await Promise.all([
+      ideaIds.length
+        ? supabase.from('ideas').select('id, title').in('id', ideaIds)
+        : Promise.resolve({ data: [], error: null }),
+      matchupIds.length
+        ? supabase
+            .from('votes')
+            .select('matchup_id, user_id, winner_id')
+            .in('matchup_id', matchupIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (ideasError) throw ideasError;
+    if (votesError) throw votesError;
+
+    const ideasById = new Map((ideas ?? []).map((idea) => [idea.id, idea]));
+    const userVotes = new Map(
+      (votes ?? [])
+        .filter((vote) => vote.user_id === user?.id)
+        .map((vote) => [vote.matchup_id, vote.winner_id]),
+    );
+
+    res.json({
+      id: round.id,
+      round_number: round.round_num,
+      status: 'active',
+      total_matchups: allMatchups.length,
+      votes_cast: votes?.length ?? 0,
+      matchups: user
+        ? allMatchups
+            .filter((matchup) => matchup.user_id === user.id)
+            .map((matchup) => ({
+              id: matchup.id,
+              status: matchup.status,
+              selected_winner_id: userVotes.get(matchup.id) ?? null,
+              idea_a: ideasById.get(matchup.idea_a) ?? null,
+              idea_b: ideasById.get(matchup.idea_b) ?? null,
+            }))
+        : [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 // open a new round, closing any active one first
