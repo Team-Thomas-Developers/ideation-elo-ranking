@@ -2,12 +2,19 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { applyVote } from '../services/ratings';
 import { Matchup } from '../types';
+import { getAuthenticatedUser } from '../lib/auth';
 
 const router = Router();
 
 // post /api/votes { matchup_id, winner_id } — record a vote and apply its elo effects
 router.post('/', async (req, res) => {
   try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Valid Supabase bearer token required' });
+      return;
+    }
+
     const { matchup_id, winner_id } = req.body ?? {};
     if (!matchup_id || !winner_id) {
       res.status(400).json({ error: 'matchup_id and winner_id are required' });
@@ -26,6 +33,22 @@ router.post('/', async (req, res) => {
     }
 
     const m = matchup as Matchup;
+    if (m.user_id !== user.id) {
+      res.status(403).json({ error: 'This matchup is assigned to another user' });
+      return;
+    }
+
+    const { data: round, error: roundError } = await supabase
+      .from('rounds')
+      .select('status')
+      .eq('id', m.round_id)
+      .maybeSingle();
+    if (roundError) throw roundError;
+    if (!round?.status) {
+      res.status(409).json({ error: 'Voting is closed for this round' });
+      return;
+    }
+
     if (m.status) {
       res.status(409).json({ error: 'matchup already voted on' });
       return;
