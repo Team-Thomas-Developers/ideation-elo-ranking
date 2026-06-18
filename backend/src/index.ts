@@ -8,7 +8,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+// Allow the configured frontend plus the common localhost/127.0.0.1 dev hosts
+// (the browser treats localhost and 127.0.0.1 as different origins).
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+app.use(
+  cors({
+    origin(origin, callback) {
+      // allow non-browser clients (curl, same-origin) with no Origin header
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
+  })
+);
 app.use(express.json());
 
 app.use('/api', routes);

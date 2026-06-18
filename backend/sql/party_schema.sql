@@ -38,6 +38,14 @@ create index if not exists party_members_user_idx  on party_members (user_id);
 alter table rounds add column if not exists party_id uuid references parties (id);
 create index if not exists rounds_party_idx on rounds (party_id);
 
+-- Enable Row Level Security. All party access goes through the backend's
+-- service_role client, which BYPASSES RLS — so we enable RLS with no
+-- policies. That blocks direct access from the public anon key while the
+-- backend keeps full access. (Add policies later if the frontend ever
+-- needs to read these tables directly with the anon/authenticated key.)
+alter table parties enable row level security;
+alter table party_members enable row level security;
+
 -- keep parties.updated_at fresh on any change
 create or replace function touch_parties_updated_at()
 returns trigger as $$

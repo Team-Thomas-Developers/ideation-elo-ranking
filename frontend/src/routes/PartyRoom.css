@@ -165,3 +165,16 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
+.party-input--wide {
+  width: 200px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.party-error {
+  color: #f87171;
+  background: #2a1416;
+  border: 1px solid #5b2326;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+}
