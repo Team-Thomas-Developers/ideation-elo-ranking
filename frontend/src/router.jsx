@@ -3,6 +3,7 @@ import App from './App'
 import Signup from './components/Signup'
 import Signin from './components/Signin'
 import Dashboard from './routes/Dashboard'
+import PartyRoom from './routes/PartyRoom'
 import PrivateRoute from './components/PrivateRoute'
 
 export const router = createBrowserRouter([
@@ -14,6 +15,14 @@ export const router = createBrowserRouter([
     element: (
       <PrivateRoute>
         <Dashboard />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/party',
+    element: (
+      <PrivateRoute>
+        <PartyRoom />
       </PrivateRoute>
     ),
   },
