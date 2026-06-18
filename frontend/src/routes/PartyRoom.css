@@ -47,8 +47,14 @@
   background: #2a2a2e;
   color: #b9b9c0;
 }
-.party-status--active { background: #14361f; color: #5fd68a; }
-.party-status--done { background: #2a2a2e; color: #8a8a92; }
+.party-status--active {
+  background: #14361f;
+  color: #5fd68a;
+}
+.party-status--done {
+  background: #2a2a2e;
+  color: #8a8a92;
+}
 
 .party-code {
   text-align: right;
@@ -134,14 +140,20 @@
   font-size: 14px;
   cursor: pointer;
 }
-.party-btn:hover { background: #26262a; }
+.party-btn:hover {
+  background: #26262a;
+}
 .party-btn--primary {
   background: #3b82f6;
   border-color: #3b82f6;
   color: #fff;
 }
-.party-btn--primary:hover { background: #2f6fe0; }
-.party-btn--ghost { background: transparent; }
+.party-btn--primary:hover {
+  background: #2f6fe0;
+}
+.party-btn--ghost {
+  background: transparent;
+}
 .party-input {
   background: #1d1d20;
   border: 1px solid #2a2a2e;

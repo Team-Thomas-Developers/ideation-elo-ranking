@@ -35,7 +35,7 @@ const PartyRoom = () => {
 
   // leader goes first in the roster
   const roster = [...party.members].sort(
-    (a, b) => Number(b.is_leader) - Number(a.is_leader)
+    (a, b) => Number(b.is_leader) - Number(a.is_leader),
   )
   const youAreLeader = true // TODO: party.leader_id === session?.user?.id
 
@@ -47,7 +47,11 @@ const PartyRoom = () => {
           Create Room
         </button>
         <div className="party-join">
-          <input className="party-input" placeholder="Enter code" maxLength={6} />
+          <input
+            className="party-input"
+            placeholder="Enter code"
+            maxLength={6}
+          />
           <button className="party-btn" type="button">
             Join
           </button>
