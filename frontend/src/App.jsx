@@ -6,7 +6,8 @@ const App = () => {
       <nav style={{ marginBottom: 12 }}>
         <Link to="/">Home</Link> | <Link to="/signup">Sign Up</Link> |{' '}
         <Link to="/signin">Sign In</Link> |{' '}
-        <Link to="/dashboard">Dashboard</Link>
+        <Link to="/dashboard">Dashboard</Link> |{' '}
+        <Link to="/party">Party Room</Link>
       </nav>
 
       <main>
