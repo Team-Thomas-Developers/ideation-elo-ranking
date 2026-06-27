@@ -90,7 +90,9 @@ export function IdeaManager({ session }) {
           description,
         })
         setIdeas((current) =>
-          current.map((idea) => (idea.id === updatedIdea.id ? updatedIdea : idea)),
+          current.map((idea) =>
+            idea.id === updatedIdea.id ? updatedIdea : idea,
+          ),
         )
       } else {
         const newIdea = await createIdea(token, { title, description })
@@ -152,14 +154,20 @@ export function IdeaManager({ session }) {
             Description
             <textarea
               value={form.description}
-              onChange={(event) => updateForm('description', event.target.value)}
+              onChange={(event) =>
+                updateForm('description', event.target.value)
+              }
               placeholder="Describe the idea"
               rows="3"
             />
           </label>
           <div className="idea-actions">
             <button className="vote-button" type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : editingId ? 'Save Changes' : 'Submit Idea'}
+              {isSaving
+                ? 'Saving...'
+                : editingId
+                  ? 'Save Changes'
+                  : 'Submit Idea'}
             </button>
             <button
               className="vote-button secondary-button"
