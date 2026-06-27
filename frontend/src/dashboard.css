@@ -263,6 +263,7 @@ select {
 .leaderboard-panel,
 .chart-panel,
 .markets-panel,
+.ideas-panel,
 .loading-panel {
   padding: 20px;
 }
@@ -398,6 +399,92 @@ svg {
 
 .markets-panel {
   margin-top: 18px;
+}
+
+.ideas-panel,
+.dashboard-error-panel {
+  margin-bottom: 18px;
+}
+
+.idea-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.idea-form label {
+  display: grid;
+  gap: 6px;
+  color: #475166;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.idea-form input,
+.idea-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e3;
+  border-radius: 8px;
+  color: #172033;
+  background: #ffffff;
+}
+
+.idea-form textarea {
+  resize: vertical;
+}
+
+.idea-list {
+  display: grid;
+  gap: 10px;
+}
+
+.idea-card {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e7ebf3;
+}
+
+.idea-card:last-child {
+  border-bottom: 0;
+}
+
+.idea-card h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 1rem;
+}
+
+.idea-card p {
+  margin: 6px 0 0;
+  color: #647086;
+}
+
+.idea-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary-button {
+  color: #647086;
+}
+
+.vote-error {
+  padding: 10px 12px;
+  border: 1px solid #efc6c0;
+  border-radius: 8px;
+  color: #9f2f22;
+  background: #fff5f3;
+  font-weight: 700;
+}
+
+.empty-matchups {
+  margin: 0;
+  color: #647086;
 }
 
 .market-feature {
@@ -550,9 +637,14 @@ svg {
   .leaderboard-panel,
   .chart-panel,
   .markets-panel,
+  .ideas-panel,
   .metric-panel,
   .loading-panel {
     padding: 16px;
+  }
+
+  .idea-card {
+    flex-direction: column;
   }
 
   .market-feature {
