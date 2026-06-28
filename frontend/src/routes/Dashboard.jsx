@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Leaderboard } from '../components/dashboard/Leaderboard'
+import { IdeaManager } from '../components/dashboard/IdeaManager'
 import { PredictionMarkets } from '../components/dashboard/PredictionMarkets'
 import { QtmaLogo } from '../components/dashboard/QtmaLogo'
 import { RoundStatus } from '../components/dashboard/RoundStatus'
@@ -83,18 +84,6 @@ const Dashboard = () => {
     )
   }
 
-  if (loadError) {
-    return (
-      <main className="page page-enter">
-        <section className="panel loading-panel">
-          <span className="eyebrow">Supabase connection error</span>
-          <h2>Data could not be loaded</h2>
-          <p>{loadError}</p>
-        </section>
-      </main>
-    )
-  }
-
   return (
     <main className="page page-enter">
       <header className="app-header">
@@ -118,12 +107,24 @@ const Dashboard = () => {
       </header>
 
       <span className="signed-in-label">{session?.user?.email}</span>
-      <RoundStatus round={round} />
-      <div className="dashboard-grid">
-        <Leaderboard rows={leaderboard} />
-        <ScoreChart history={scoreHistory} teams={baseLeaderboard} />
-      </div>
-      <PredictionMarkets rows={leaderboard} round={round} />
+      <IdeaManager session={session} />
+
+      {loadError ? (
+        <section className="panel loading-panel dashboard-error-panel">
+          <span className="eyebrow">Supabase connection error</span>
+          <h2>Leaderboard data could not be loaded</h2>
+          <p>{loadError}</p>
+        </section>
+      ) : (
+        <>
+          <RoundStatus round={round} />
+          <div className="dashboard-grid">
+            <Leaderboard rows={leaderboard} />
+            <ScoreChart history={scoreHistory} teams={baseLeaderboard} />
+          </div>
+          <PredictionMarkets rows={leaderboard} round={round} />
+        </>
+      )}
     </main>
   )
 }
