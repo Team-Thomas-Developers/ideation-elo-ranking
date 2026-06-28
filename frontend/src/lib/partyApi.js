@@ -1,6 +1,9 @@
 // Thin client for the party/room backend. Every call sends the
 // Supabase access token so the server can identify the user.
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  'http://localhost:3001'
 
 async function request(path, token, options = {}) {
   const res = await fetch(`${API}/api/parties${path}`, {

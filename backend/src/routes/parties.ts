@@ -79,7 +79,13 @@ router.get('/me', async (req, res) => {
     .limit(1)
     .maybeSingle();
   if (!membership) return res.json({ party: null });
-  res.json({ party: await loadPartyWithMembers(membership.party_id) });
+
+  const party = await loadPartyWithMembers(membership.party_id);
+  if (!party || party.status === 'done') {
+    return res.json({ party: null });
+  }
+
+  res.json({ party });
 });
 
 // --- Create a party. Caller becomes the room leader. ----------
@@ -180,9 +186,47 @@ router.post('/:partyId/start', async (req, res) => {
   await supabase.from('parties').update({ status: 'active' }).eq('id', party.id);
 
   // open the first round for this room (status = true => round open)
-  await supabase
+  const { data: round, error: roundInsertError } = await supabase
     .from('rounds')
-    .insert({ party_id: party.id, round_num: 1, status: true });
+    .insert({ party_id: party.id, round_num: 1, status: true })
+    .select('id, round_num')
+    .single();
+  if (roundInsertError) throw roundInsertError;
+
+  // create matchups for every current party member
+  const { data: members, error: membersError } = await supabase
+    .from('party_members')
+    .select('user_id')
+    .eq('party_id', party.id);
+  if (membersError) throw membersError;
+
+  const { data: ideas, error: ideasError } = await supabase
+    .from('ideas')
+    .select('id');
+  if (ideasError) throw ideasError;
+  if (!ideas || ideas.length < 2) {
+    // nothing to insert — leave room active but no matchups
+    return res.json(await loadPartyWithMembers(party.id));
+  }
+
+  // for each member, pick two random distinct ideas and create a matchup
+  const ideaIds = (ideas as any[]).map((i) => i.id);
+  const matchups = (members ?? []).map((m: any) => {
+    // pick two distinct random indices
+    const a = Math.floor(Math.random() * ideaIds.length);
+    let b = Math.floor(Math.random() * ideaIds.length);
+    if (b === a) b = (b + 1) % ideaIds.length;
+    return {
+      round_id: round.id,
+      user_id: m.user_id,
+      idea_a: ideaIds[a],
+      idea_b: ideaIds[b],
+      status: false,
+    };
+  });
+
+  const { error: matchupsError } = await supabase.from('matchups').insert(matchups);
+  if (matchupsError) throw matchupsError;
 
   res.json(await loadPartyWithMembers(party.id));
 });

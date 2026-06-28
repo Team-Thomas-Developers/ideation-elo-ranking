@@ -8,13 +8,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Allow the configured frontend plus the common localhost/127.0.0.1 dev hosts
-// (the browser treats localhost and 127.0.0.1 as different origins).
+// Allow the configured frontend plus the common localhost/127.0.0.1 dev hosts.
+// Vite commonly uses 5173/5174, and the browser treats localhost/127.0.0.1 as different origins.
+const configuredFrontend = process.env.FRONTEND_URL?.trim();
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
+  configuredFrontend,
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://127.0.0.1:5173',
-];
+  'http://127.0.0.1:5174',
+].filter(Boolean) as string[];
 app.use(
   cors({
     origin(origin, callback) {

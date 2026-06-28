@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
 import { UserAuth } from '../context/AuthContext'
 import {
   getMyParty,
@@ -43,6 +45,14 @@ const PartyRoom = () => {
     }
   }, [token])
 
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (party?.status === 'active') {
+      navigate('/round/1', { replace: true })
+    }
+  }, [party?.status, navigate])
+
   // initial load + light polling while in a lobby
   useEffect(() => {
     refresh()
@@ -60,7 +70,11 @@ const PartyRoom = () => {
     setError(null)
     try {
       const result = await fn()
-      setParty(result.party ?? result) // leave returns {party}, others return the party
+      const nextParty = result.party ?? result
+      setParty(nextParty)
+      if (nextParty?.status === 'active') {
+        navigate('/round/1', { replace: true })
+      }
     } catch (err) {
       setError(err.message)
     } finally {
