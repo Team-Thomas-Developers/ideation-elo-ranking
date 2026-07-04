@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getAuthenticatedUser } from "../lib/auth";
+import { STARTING_ELO } from "../elo/elo";
 
 const router = Router();
 
@@ -94,7 +95,7 @@ router.post("/", async (req, res) => {
       title,
       desc: description,
       created_by: user.id,
-      curr_score: 1000,
+      curr_score: STARTING_ELO,
       curr_rank: nextRank,
     })
     .select("id, title, desc, curr_score, curr_rank, created_by, created_at")
