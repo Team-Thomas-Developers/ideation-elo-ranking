@@ -1,25 +1,3 @@
--- ============================================================
--- CORE ELO RANKING SCHEMA  (ideas, rounds, matchups, votes, scorehistory)
--- ------------------------------------------------------------
--- The base tables the ELO scoring loop reads and writes. These had only
--- ever lived in the Supabase dashboard; this file version-controls them so
--- the data model lives with the code. Mirrors what the backend actually
--- selects/inserts/updates (see src/routes/* and src/services/ratings.ts).
---
--- Idempotent: every object uses `if not exists`, so this is safe to run
--- against the live, already-migrated database (it will be a no-op there).
---
--- Run this in the Supabase SQL editor. Intended run order:
---   users (external, Supabase auth-backed) -> elo_schema.sql -> party_schema.sql
---   -> migrations/*  (the migrations only ALTER columns/indexes that this
---   file already includes, so they become no-ops once this has run).
---
--- `rounds.party_id` is intentionally NOT defined here. party_schema.sql adds
--- it via `alter table rounds add column if not exists party_id ...` after the
--- `parties` table exists, which keeps this file free of a forward reference
--- to a table created later, and matches how the column was added in reality.
--- ============================================================
-
 -- An idea competing in the ranking. curr_score is its live ELO rating.
 create table if not exists ideas (
   id          uuid primary key default gen_random_uuid(),
