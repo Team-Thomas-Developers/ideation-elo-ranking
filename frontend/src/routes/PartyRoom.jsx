@@ -227,9 +227,17 @@ const PartyRoom = () => {
               <h3>Voting complete</h3>
               <p>
                 You&apos;ve finished the current round. Your votes have been
-                recorded and the leaderboard will reflect the latest Elo changes.
+                recorded and the leaderboard will reflect the latest Elo
+                changes.
               </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginTop: 16,
+                }}
+              >
                 <button
                   className="party-btn party-btn--primary"
                   type="button"

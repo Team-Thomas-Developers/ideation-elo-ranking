@@ -18,7 +18,11 @@ const RootRoute = () => {
     return <div>Loading...</div>
   }
 
-  return session ? <Navigate to="/dashboard" replace /> : <Navigate to="/signin" replace />
+  return session ? (
+    <Navigate to="/dashboard" replace />
+  ) : (
+    <Navigate to="/signin" replace />
+  )
 }
 
 export const router = createBrowserRouter([
