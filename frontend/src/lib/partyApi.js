@@ -5,8 +5,8 @@ const API =
   import.meta.env.VITE_BACKEND_URL ||
   'http://localhost:3001'
 
-async function request(path, token, options = {}) {
-  const res = await fetch(`${API}/api/parties${path}`, {
+async function request(path, token, options = {}, basePath = '/api/parties') {
+  const res = await fetch(`${API}${basePath}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -38,3 +38,23 @@ export const startParty = (token, partyId) =>
 
 export const leaveParty = (token, partyId) =>
   request(`/${partyId}/leave`, token, { method: 'POST' })
+
+export const getCurrentRound = (token) =>
+  request('/current', token, {}, '/api/rounds')
+
+export const getMatchups = (token, userId, roundId) => {
+  const params = new URLSearchParams({ userId })
+  if (roundId) params.set('roundId', roundId)
+  return request(`/?${params.toString()}`, token, {}, '/api/matchups')
+}
+
+export const submitVote = (token, { matchupId, winnerId }) =>
+  request(
+    '/',
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ matchup_id: matchupId, winner_id: winnerId }),
+    },
+    '/api/votes',
+  )
