@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getAuthenticatedUser } from "../lib/auth";
+import { recomputeRanks } from "../services/ratings";
 
 const router = Router();
+const IDEA_SELECT =
+  "id, title, desc, curr_score, curr_rank, created_by, created_at";
 
 type SupabaseUser = {
   id: string;
@@ -45,7 +48,7 @@ function cleanText(value: unknown) {
 router.get("/", async (_req, res) => {
   const { data, error } = await supabase
     .from("ideas")
-    .select("id, title, desc, curr_score, curr_rank, created_by, created_at")
+    .select(IDEA_SELECT)
     .order("curr_rank", { ascending: true });
 
   if (error) {
@@ -61,7 +64,7 @@ router.get("/mine", async (req, res) => {
 
   const { data, error } = await supabase
     .from("ideas")
-    .select("id, title, desc, curr_score, curr_rank, created_by, created_at")
+    .select(IDEA_SELECT)
     .eq("created_by", user.id)
     .order("created_at", { ascending: false });
 
@@ -79,14 +82,18 @@ router.post("/", async (req, res) => {
 
   await ensureUserRow(user);
 
-  const { data: rankRows, error: rankError } = await supabase
+  const { data: existingIdea, error: duplicateError } = await supabase
     .from("ideas")
-    .select("curr_rank")
-    .order("curr_rank", { ascending: false, nullsFirst: false })
-    .limit(1);
-  if (rankError) return res.status(500).json({ error: rankError.message });
-
-  const nextRank = Number(rankRows?.[0]?.curr_rank ?? 0) + 1;
+    .select("id")
+    .ilike("title", title)
+    .maybeSingle();
+  if (duplicateError)
+    return res.status(500).json({ error: duplicateError.message });
+  if (existingIdea) {
+    return res
+      .status(409)
+      .json({ error: "an idea with this name already exists" });
+  }
 
   const { data, error } = await supabase
     .from("ideas")
@@ -94,14 +101,29 @@ router.post("/", async (req, res) => {
       title,
       desc: description,
       created_by: user.id,
-      curr_score: 1000,
-      curr_rank: nextRank,
+      curr_score: 1200,
+      curr_rank: 0,
     })
-    .select("id, title, desc, curr_score, curr_rank, created_by, created_at")
+    .select(IDEA_SELECT)
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(ideaPayload(data));
+
+  try {
+    await recomputeRanks();
+  } catch (rankError) {
+    return res.status(500).json({ error: (rankError as Error).message });
+  }
+
+  const { data: createdIdea, error: createdError } = await supabase
+    .from("ideas")
+    .select(IDEA_SELECT)
+    .eq("id", data.id)
+    .single();
+  if (createdError)
+    return res.status(500).json({ error: createdError.message });
+
+  res.status(201).json(ideaPayload(createdIdea));
 });
 
 router.patch("/:ideaId", async (req, res) => {
@@ -125,6 +147,20 @@ router.patch("/:ideaId", async (req, res) => {
     return res.status(403).json({ error: "you can only edit your own ideas" });
   }
 
+  const { data: duplicateIdea, error: duplicateError } = await supabase
+    .from("ideas")
+    .select("id")
+    .ilike("title", title)
+    .neq("id", req.params.ideaId)
+    .maybeSingle();
+  if (duplicateError)
+    return res.status(500).json({ error: duplicateError.message });
+  if (duplicateIdea) {
+    return res
+      .status(409)
+      .json({ error: "an idea with this name already exists" });
+  }
+
   const { data, error } = await supabase
     .from("ideas")
     .update({
@@ -133,7 +169,7 @@ router.patch("/:ideaId", async (req, res) => {
       updated_at: new Date().toISOString(),
     })
     .eq("id", req.params.ideaId)
-    .select("id, title, desc, curr_score, curr_rank, created_by, created_at")
+    .select(IDEA_SELECT)
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -183,6 +219,13 @@ router.delete("/:ideaId", async (req, res) => {
 
   const { error } = await supabase.from("ideas").delete().eq("id", ideaId);
   if (error) return res.status(500).json({ error: error.message });
+
+  try {
+    await recomputeRanks();
+  } catch (rankError) {
+    return res.status(500).json({ error: (rankError as Error).message });
+  }
+
   res.json({ id: ideaId });
 });
 

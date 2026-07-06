@@ -185,6 +185,12 @@ select {
   color: #246bfe;
 }
 
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .signed-in-label {
   display: block;
   margin: -12px 0 18px;
