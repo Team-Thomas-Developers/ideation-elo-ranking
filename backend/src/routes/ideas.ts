@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getAuthenticatedUser } from "../lib/auth";
 import { recomputeRanks } from "../services/ratings";
+import { STARTING_ELO } from "../elo/elo";
 
 const router = Router();
 const IDEA_SELECT =
@@ -101,7 +102,7 @@ router.post("/", async (req, res) => {
       title,
       desc: description,
       created_by: user.id,
-      curr_score: 1200,
+      curr_score: STARTING_ELO,
       curr_rank: 0,
     })
     .select(IDEA_SELECT)

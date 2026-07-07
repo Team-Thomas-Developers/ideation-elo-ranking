@@ -23,9 +23,28 @@ router.get('/', async (_req, res) => {
 router.get('/current', async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'auth required' });
+      return;
+    }
+
+    const { data: membership, error: membershipError } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', user.id)
+      .order('joined_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (membershipError) throw membershipError;
+    if (!membership) {
+      res.status(404).json({ error: 'No party membership found' });
+      return;
+    }
+
     const { data: round, error: roundError } = await supabase
       .from('rounds')
       .select('id, round_num, status')
+      .eq('party_id', membership.party_id)
       .eq('status', true)
       .order('round_num', { ascending: false })
       .limit(1)
@@ -33,7 +52,7 @@ router.get('/current', async (req, res) => {
 
     if (roundError) throw roundError;
     if (!round) {
-      res.status(404).json({ error: 'No active round' });
+      res.status(404).json({ error: 'No active round for your party' });
       return;
     }
 
@@ -54,7 +73,7 @@ router.get('/current', async (req, res) => {
       { data: votes, error: votesError },
     ] = await Promise.all([
       ideaIds.length
-        ? supabase.from('ideas').select('id, title').in('id', ideaIds)
+        ? supabase.from('ideas').select('id, title, desc, curr_score, curr_rank').in('id', ideaIds)
         : Promise.resolve({ data: [], error: null }),
       matchupIds.length
         ? supabase
@@ -70,27 +89,27 @@ router.get('/current', async (req, res) => {
     const ideasById = new Map((ideas ?? []).map((idea) => [idea.id, idea]));
     const userVotes = new Map(
       (votes ?? [])
-        .filter((vote) => vote.user_id === user?.id)
+        .filter((vote) => vote.user_id === user.id)
         .map((vote) => [vote.matchup_id, vote.winner_id]),
     );
+
+    const completedCount = allMatchups.filter((matchup) => matchup.status === true).length;
+    const userMatchups = allMatchups.filter((matchup) => matchup.user_id === user.id);
 
     res.json({
       id: round.id,
       round_number: round.round_num,
       status: 'active',
       total_matchups: allMatchups.length,
+      completed_matchups: completedCount,
       votes_cast: votes?.length ?? 0,
-      matchups: user
-        ? allMatchups
-            .filter((matchup) => matchup.user_id === user.id)
-            .map((matchup) => ({
-              id: matchup.id,
-              status: matchup.status,
-              selected_winner_id: userVotes.get(matchup.id) ?? null,
-              idea_a: ideasById.get(matchup.idea_a) ?? null,
-              idea_b: ideasById.get(matchup.idea_b) ?? null,
-            }))
-        : [],
+      user_matchups: userMatchups.map((matchup) => ({
+        id: matchup.id,
+        status: matchup.status,
+        selected_winner_id: userVotes.get(matchup.id) ?? null,
+        idea_a: ideasById.get(matchup.idea_a) ?? null,
+        idea_b: ideasById.get(matchup.idea_b) ?? null,
+      })),
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
