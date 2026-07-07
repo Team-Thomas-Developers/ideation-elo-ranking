@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Leaderboard } from '../components/dashboard/Leaderboard'
-import { IdeaManager } from '../components/dashboard/IdeaManager'
 import { PredictionMarkets } from '../components/dashboard/PredictionMarkets'
 import { QtmaLogo } from '../components/dashboard/QtmaLogo'
 import { RoundStatus } from '../components/dashboard/RoundStatus'
@@ -96,6 +95,9 @@ const Dashboard = () => {
             <span>Data Source</span>
             <strong>{dataSource}</strong>
           </div>
+          <Link className="sign-out-button header-link" to="/ideas">
+            Manage Ideas
+          </Link>
           <button
             className="sign-out-button"
             type="button"
@@ -107,7 +109,6 @@ const Dashboard = () => {
       </header>
 
       <span className="signed-in-label">{session?.user?.email}</span>
-      <IdeaManager session={session} />
 
       {loadError ? (
         <section className="panel loading-panel dashboard-error-panel">

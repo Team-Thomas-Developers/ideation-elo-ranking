@@ -3,6 +3,7 @@ import App from './App'
 import Signup from './components/Signup'
 import Signin from './components/Signin'
 import Dashboard from './routes/Dashboard'
+import Ideas from './routes/Ideas'
 import PartyRoom from './routes/PartyRoom'
 import PrivateRoute from './components/PrivateRoute'
 import PublicRoute from './components/PublicRoute'
@@ -51,6 +52,14 @@ export const router = createBrowserRouter([
     element: (
       <PrivateRoute>
         <Dashboard />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/ideas',
+    element: (
+      <PrivateRoute>
+        <Ideas />
       </PrivateRoute>
     ),
   },

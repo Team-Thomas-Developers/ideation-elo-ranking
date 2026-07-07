@@ -19,7 +19,7 @@ const App = () => {
         {showProtectedLinks && (
           <>
             {' | '} <Link to="/dashboard">Dashboard</Link> |{' '}
-            <Link to="/party">Party Room</Link>
+            <Link to="/ideas">Ideas</Link> | <Link to="/party">Party Room</Link>
           </>
         )}
       </nav>
