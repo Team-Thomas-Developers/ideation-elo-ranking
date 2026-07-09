@@ -178,3 +178,59 @@
   border-radius: 9px;
   font-size: 14px;
 }
+
+/* ---- per-category voting ballot ---- */
+.ballot-grid {
+  display: grid;
+  grid-template-columns: 130px 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.ballot-header {
+  margin-bottom: 10px;
+}
+.ballot-row {
+  margin-bottom: 8px;
+}
+.ballot-idea-head strong {
+  font-size: 15px;
+}
+.ballot-idea-desc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #b9b9c0;
+}
+.ballot-category {
+  font-size: 14px;
+  color: #e7e7ea;
+}
+.ballot-choice {
+  border: 2px solid #2a2a2e;
+  background: #1d1d20;
+  color: #e7e7ea;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.ballot-choice:hover:not(:disabled) {
+  background: #26262a;
+}
+.ballot-choice.is-selected {
+  border-color: #5fd68a;
+  background: #14361f;
+  color: #a8f0c1;
+  font-weight: 600;
+}
+.ballot-choice:disabled {
+  cursor: not-allowed;
+}
+.ballot-hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #8a8a92;
+}

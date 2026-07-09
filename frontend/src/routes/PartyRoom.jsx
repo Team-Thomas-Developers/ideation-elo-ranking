@@ -10,6 +10,7 @@ import {
   getCurrentRound,
   getMatchups,
   submitVote,
+  getCategories,
 } from '../lib/partyApi'
 import './PartyRoom.css'
 
@@ -39,6 +40,8 @@ const PartyRoom = () => {
   const [currentMatchupIndex, setCurrentMatchupIndex] = useState(0)
   const [matchupsLoading, setMatchupsLoading] = useState(false)
   const [votingComplete, setVotingComplete] = useState(false)
+  const [categories, setCategories] = useState([])
+  const [picks, setPicks] = useState({}) // categoryId -> winning ideaId
 
   const refresh = useCallback(async () => {
     if (!token) return
@@ -85,10 +88,14 @@ const PartyRoom = () => {
 
       try {
         const round = await getCurrentRound(token)
-        const matchupData = await getMatchups(token, userId, round.id)
+        const [matchupData, categoryData] = await Promise.all([
+          getMatchups(token, userId, round.id),
+          getCategories(token),
+        ])
         if (!ignore) {
           setActiveRound(round)
           setMatchups(Array.isArray(matchupData) ? matchupData : [])
+          setCategories(Array.isArray(categoryData) ? categoryData : [])
           setCurrentMatchupIndex(0)
           setVotingComplete(false)
         }
@@ -113,6 +120,11 @@ const PartyRoom = () => {
   }, [party?.id, party?.status, token, userId])
 
   const currentMatchup = matchups[currentMatchupIndex]
+
+  // clear picks whenever we move to a new matchup
+  useEffect(() => {
+    setPicks({})
+  }, [currentMatchup?.id])
 
   // run an action, then refresh state
   const run = async (fn) => {
@@ -176,8 +188,16 @@ const PartyRoom = () => {
     )
   }
 
-  const handleVote = async (winnerId) => {
-    if (!currentMatchup || busy) return
+  const allPicked =
+    categories.length > 0 && categories.every((c) => picks[c.id])
+
+  const pickCategory = (categoryId, ideaId) => {
+    if (busy) return
+    setPicks((prev) => ({ ...prev, [categoryId]: ideaId }))
+  }
+
+  const handleSubmit = async () => {
+    if (!currentMatchup || busy || !allPicked) return
 
     setBusy(true)
     setError(null)
@@ -185,7 +205,7 @@ const PartyRoom = () => {
     try {
       await submitVote(token, {
         matchupId: currentMatchup.id,
-        winnerId,
+        winners: picks,
       })
 
       if (currentMatchupIndex + 1 >= matchups.length) {
@@ -259,39 +279,78 @@ const PartyRoom = () => {
           ) : (
             <div>
               <p>
-                Pick the idea you want to advance for this matchup{' '}
+                Pick the stronger idea in every category for matchup{' '}
                 {currentMatchupIndex + 1} of {matchups.length}.
               </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  className="party-btn party-btn--primary"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleVote(currentMatchup.idea_a?.id)}
-                  style={{ flex: 1, minWidth: 220, textAlign: 'left' }}
-                >
+
+              {/* header: the two ideas being compared */}
+              <div className="ballot-grid ballot-header">
+                <div />
+                <div className="ballot-idea-head">
                   <strong>{currentMatchup.idea_a?.title || 'Idea A'}</strong>
                   {currentMatchup.idea_a?.desc && (
-                    <div style={{ marginTop: 8, fontSize: 14 }}>
+                    <div className="ballot-idea-desc">
                       {currentMatchup.idea_a.desc}
                     </div>
                   )}
-                </button>
-                <button
-                  className="party-btn"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleVote(currentMatchup.idea_b?.id)}
-                  style={{ flex: 1, minWidth: 220, textAlign: 'left' }}
-                >
+                </div>
+                <div className="ballot-idea-head">
                   <strong>{currentMatchup.idea_b?.title || 'Idea B'}</strong>
                   {currentMatchup.idea_b?.desc && (
-                    <div style={{ marginTop: 8, fontSize: 14 }}>
+                    <div className="ballot-idea-desc">
                       {currentMatchup.idea_b.desc}
                     </div>
                   )}
-                </button>
+                </div>
               </div>
+
+              {/* one row per category */}
+              {categories.map((category) => {
+                const ideaAId = currentMatchup.idea_a?.id
+                const ideaBId = currentMatchup.idea_b?.id
+                return (
+                  <div key={category.id} className="ballot-grid ballot-row">
+                    <div className="ballot-category">{category.label}</div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={`ballot-choice${
+                        picks[category.id] === ideaAId ? ' is-selected' : ''
+                      }`}
+                      onClick={() => pickCategory(category.id, ideaAId)}
+                    >
+                      {picks[category.id] === ideaAId ? '✓ ' : ''}
+                      {currentMatchup.idea_a?.title || 'Idea A'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={`ballot-choice${
+                        picks[category.id] === ideaBId ? ' is-selected' : ''
+                      }`}
+                      onClick={() => pickCategory(category.id, ideaBId)}
+                    >
+                      {picks[category.id] === ideaBId ? '✓ ' : ''}
+                      {currentMatchup.idea_b?.title || 'Idea B'}
+                    </button>
+                  </div>
+                )
+              })}
+
+              <button
+                className="party-btn party-btn--primary"
+                type="button"
+                disabled={busy || !allPicked}
+                onClick={handleSubmit}
+                style={{ marginTop: 20 }}
+              >
+                {busy ? 'Submitting…' : 'Submit votes'}
+              </button>
+              {!allPicked && (
+                <p className="ballot-hint">
+                  Choose a winner in every category to submit.
+                </p>
+              )}
             </div>
           )}
         </section>

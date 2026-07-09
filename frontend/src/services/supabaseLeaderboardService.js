@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { computeRatings } from '../lib/rating'
 
 function requireSupabase() {
   if (!supabase) {
@@ -12,14 +13,28 @@ export async function getSupabaseLeaderboard() {
   const client = requireSupabase()
   const { data, error } = await client
     .from('ideas')
-    .select('id, title, curr_score, curr_rank')
+    .select(
+      'id, title, curr_score, curr_rank, idea_scores(category_id, curr_score)',
+    )
     .order('curr_rank', { ascending: true })
 
   if (error) throw error
+
+  const ratings = computeRatings(
+    data.map((row) => ({
+      id: row.id,
+      scores: (row.idea_scores ?? []).map((s) => ({
+        category_id: s.category_id,
+        curr_score: s.curr_score,
+      })),
+    })),
+  )
+
   return data.map((row) => ({
     id: row.id,
     name: row.title,
-    elo: row.curr_score,
+    elo: row.curr_score, // raw ELO, kept for the score chart / prediction widget
+    rating: ratings.get(row.id)?.overall_rating ?? null, // overall /5
     rank: row.curr_rank,
     previousRank: row.curr_rank,
     scoreChange: 0,

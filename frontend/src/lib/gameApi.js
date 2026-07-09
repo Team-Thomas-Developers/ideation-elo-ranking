@@ -31,8 +31,11 @@ export const getCurrentRound = () => request('/rounds/current')
 
 export const getIdeas = () => request('/ideas')
 
-export const voteMatchup = (matchupId, winnerId) =>
+export const getCategories = () => request('/categories')
+
+// winnersByCategory: { <categoryId>: <winnerIdeaId> } for all categories
+export const voteMatchup = (matchupId, winnersByCategory) =>
   request('/votes', {
     method: 'POST',
-    body: JSON.stringify({ matchup_id: matchupId, winner_id: winnerId }),
+    body: JSON.stringify({ matchup_id: matchupId, winners: winnersByCategory }),
   })

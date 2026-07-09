@@ -22,6 +22,7 @@ function mapLeaderboardRow(row) {
     id: row.id,
     name: row.name,
     elo: row.elo,
+    rating: row.rating ?? null,
     rank: row.rank,
     previousRank: row.previous_rank,
     scoreChange: row.score_change,

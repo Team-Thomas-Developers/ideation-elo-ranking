@@ -5,6 +5,7 @@ import votes from './votes';
 import ideas from './ideas';
 import parties from './parties';
 import leaderboard from './leaderboard';
+import categories from './categories';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/votes', votes);
 router.use('/ideas', ideas);
 router.use('/parties', parties);
 router.use('/leaderboard', leaderboard);
+router.use('/categories', categories);
 
 export default router;

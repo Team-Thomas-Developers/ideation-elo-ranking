@@ -48,13 +48,17 @@ export const getMatchups = (token, userId, roundId) => {
   return request(`/?${params.toString()}`, token, {}, '/api/matchups')
 }
 
-export const submitVote = (token, { matchupId, winnerId }) =>
+// winners: { <categoryId>: <winnerIdeaId> } for all categories
+export const submitVote = (token, { matchupId, winners }) =>
   request(
     '/',
     token,
     {
       method: 'POST',
-      body: JSON.stringify({ matchup_id: matchupId, winner_id: winnerId }),
+      body: JSON.stringify({ matchup_id: matchupId, winners }),
     },
     '/api/votes',
   )
+
+export const getCategories = (token) =>
+  request('/', token, {}, '/api/categories')

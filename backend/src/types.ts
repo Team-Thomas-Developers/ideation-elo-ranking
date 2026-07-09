@@ -8,6 +8,21 @@ export interface Idea {
   curr_rank: number;
 }
 
+// A category ideas are ranked on (enjoyment, feasibility, ...).
+export interface Category {
+  id: string; // slug, e.g. 'enjoyment'
+  label: string;
+  sort_order: number;
+}
+
+// One idea's live ELO within a single category.
+export interface IdeaScore {
+  idea_id: string;
+  category_id: string;
+  curr_score: number;
+  curr_rank: number | null;
+}
+
 export interface Round {
   id: string;
   round_num: number;
@@ -29,6 +44,7 @@ export interface Vote {
   user_id: string;
   winner_id: string; // fk -> ideas.id
   loser_id: string; // fk -> ideas.id
+  category_id: string | null; // fk -> categories.id (null on legacy rows)
 }
 
 export interface ScoreHistory {
