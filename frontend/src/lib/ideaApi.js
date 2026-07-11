@@ -14,7 +14,7 @@ async function request(path, token, options = {}) {
   return data
 }
 
-export const getMyIdeas = (token) => request('/mine', token)
+export const getIdeas = (token) => request('/mine', token)
 
 export const createIdea = (token, payload) =>
   request('/', token, {
