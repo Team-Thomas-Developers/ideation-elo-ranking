@@ -4,13 +4,8 @@ create table if not exists ideas (
   title       text not null,
   "desc"      text,                              -- quoted: `desc` is a reserved word
   curr_score  integer not null default 1200,     -- mirrors STARTING_ELO in src/elo/elo.ts
-  curr_rank   integer,                           -- recomputed after every vote (recomputeRanks)
-  created_by  uuid references users (id),
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  curr_rank   integer                            -- recomputed after every vote (recomputeRanks)
 );
-
-create index if not exists ideas_created_by_idx on ideas (created_by);
 
 -- A voting round. status = true means open/active.
 create table if not exists rounds (

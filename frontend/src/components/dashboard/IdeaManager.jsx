@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react'
-import {
-  createIdea,
-  deleteIdea,
-  getMyIdeas,
-  updateIdea,
-} from '../../lib/ideaApi'
+import { createIdea, deleteIdea, getIdeas, updateIdea } from '../../lib/ideaApi'
 
 const emptyForm = {
   title: '',
@@ -31,7 +26,7 @@ export function IdeaManager({ session }) {
       setError('')
 
       try {
-        const rows = await getMyIdeas(token)
+        const rows = await getIdeas(token)
         if (!ignore) setIdeas(rows ?? [])
       } catch (loadError) {
         if (!ignore) setError(loadError.message || 'Unable to load ideas.')
@@ -123,7 +118,7 @@ export function IdeaManager({ session }) {
     <section className="panel ideas-panel">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Your Ideas</span>
+          <span className="eyebrow">Ideas</span>
           <h2>Submit an idea</h2>
         </div>
         <button
