@@ -15,7 +15,7 @@ export function Leaderboard({ rows }) {
             <tr>
               <th>Rank</th>
               <th>Team</th>
-              <th>ELO</th>
+              <th>Score</th>
             </tr>
           </thead>
           <tbody>
@@ -25,7 +25,11 @@ export function Leaderboard({ rows }) {
                 <td>
                   <span className="team-name">{team.name}</span>
                 </td>
-                <td>{team.elo}</td>
+                <td>
+                  {team.rating != null
+                    ? `${team.rating.toFixed(1)} / 5`
+                    : team.elo}
+                </td>
               </tr>
             ))}
           </tbody>

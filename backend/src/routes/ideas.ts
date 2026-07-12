@@ -1,11 +1,17 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getAuthenticatedUser } from "../lib/auth";
-import { recomputeRanks } from "../services/ratings";
+import { recomputeAllRanks } from "../services/ratings";
 import { STARTING_ELO } from "../elo/elo";
+import { CATEGORY_IDS } from "../lib/categories";
+import { computeRatings } from "../lib/rating";
 
 const router = Router();
+// Matches the ideas table schema (no created_by/created_at columns — see elo_schema.sql).
 const IDEA_SELECT = "id, title, desc, curr_score, curr_rank";
+// list select also pulls each idea's per-category ELO for /5 rating
+const IDEA_LIST_SELECT =
+  IDEA_SELECT + ", idea_scores(category_id, curr_score, curr_rank)";
 
 function ideaPayload(row: any) {
   return {
@@ -21,18 +27,39 @@ function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-// ideas ranked by score, best first
+// ideas ranked by overall /5, best first, each with per-category /5 breakdown
 router.get("/", async (_req, res) => {
   const { data, error } = await supabase
     .from("ideas")
-    .select(IDEA_SELECT)
-    .order("curr_rank", { ascending: true });
+    .select(IDEA_LIST_SELECT);
 
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
-  res.json((data ?? []).map(ideaPayload));
+
+  const rows = data ?? [];
+  const ratings = computeRatings(
+    rows.map((row: any) => ({
+      id: row.id,
+      scores: (row.idea_scores ?? []).map((s: any) => ({
+        category_id: s.category_id,
+        curr_score: s.curr_score,
+      })),
+    })),
+  );
+
+  const payloads = rows.map((row: any) => {
+    const rated = ratings.get(row.id);
+    return {
+      ...ideaPayload(row),
+      scores: rated?.scores ?? [],
+      overall_rating: rated?.overall_rating ?? null,
+    };
+  });
+  payloads.sort((a, b) => (b.overall_rating ?? 0) - (a.overall_rating ?? 0));
+
+  res.json(payloads);
 });
 
 router.get("/mine", async (req, res) => {
@@ -82,8 +109,18 @@ router.post("/", async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
+  // seed a starting ELO row per category for the new idea
+  const { error: seedError } = await supabase.from("idea_scores").insert(
+    CATEGORY_IDS.map((categoryId) => ({
+      idea_id: data.id,
+      category_id: categoryId,
+      curr_score: STARTING_ELO,
+    })),
+  );
+  if (seedError) return res.status(500).json({ error: seedError.message });
+
   try {
-    await recomputeRanks();
+    await recomputeAllRanks();
   } catch (rankError) {
     return res.status(500).json({ error: (rankError as Error).message });
   }
@@ -181,11 +218,12 @@ router.delete("/:ideaId", async (req, res) => {
   if (matchupsError)
     return res.status(500).json({ error: matchupsError.message });
 
+  // idea_scores rows are removed automatically via on delete cascade
   const { error } = await supabase.from("ideas").delete().eq("id", ideaId);
   if (error) return res.status(500).json({ error: error.message });
 
   try {
-    await recomputeRanks();
+    await recomputeAllRanks();
   } catch (rankError) {
     return res.status(500).json({ error: (rankError as Error).message });
   }

@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
-import { applyVote } from '../services/ratings';
+import { applyMatchupVotes } from '../services/ratings';
+import { CATEGORY_IDS } from '../lib/categories';
 import { Matchup } from '../types';
 import { getAuthenticatedUser } from '../lib/auth';
 
 const router = Router();
 
-// post /api/votes { matchup_id, winner_id } — record a vote and apply its elo effects
+// post /api/votes { matchup_id, winners: { <categoryId>: <winnerId> } }
+// records one winner per category for the matchup and applies its elo effects
 router.post('/', async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
@@ -15,9 +17,19 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    const { matchup_id, winner_id } = req.body ?? {};
-    if (!matchup_id || !winner_id) {
-      res.status(400).json({ error: 'matchup_id and winner_id are required' });
+    const { matchup_id, winners } = req.body ?? {};
+    if (!matchup_id || !winners || typeof winners !== 'object') {
+      res
+        .status(400)
+        .json({ error: 'matchup_id and a winners map are required' });
+      return;
+    }
+
+    const missing = CATEGORY_IDS.filter((c) => !winners[c]);
+    if (missing.length > 0) {
+      res
+        .status(400)
+        .json({ error: `a winner is required for every category: missing ${missing.join(', ')}` });
       return;
     }
 
@@ -53,12 +65,17 @@ router.post('/', async (req, res) => {
       res.status(409).json({ error: 'matchup already voted on' });
       return;
     }
-    if (winner_id !== m.idea_a && winner_id !== m.idea_b) {
-      res.status(400).json({ error: 'winner_id must be one of the matchup ideas' });
+    const invalid = CATEGORY_IDS.filter(
+      (c) => winners[c] !== m.idea_a && winners[c] !== m.idea_b,
+    );
+    if (invalid.length > 0) {
+      res.status(400).json({
+        error: `each winner must be one of the matchup ideas (bad: ${invalid.join(', ')})`,
+      });
       return;
     }
 
-    const outcome = await applyVote(m, winner_id);
+    const outcome = await applyMatchupVotes(m, winners);
 
     const { data: roundInfo, error: roundInfoError } = await supabase
       .from('rounds')
@@ -87,7 +104,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    res.status(201).json({ matchup_id: m.id, round_id: m.round_id, ...outcome });
+    res.status(201).json({ round_id: m.round_id, ...outcome });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
