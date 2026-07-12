@@ -7,17 +7,11 @@ import { CATEGORY_IDS } from "../lib/categories";
 import { computeRatings } from "../lib/rating";
 
 const router = Router();
-const IDEA_SELECT =
-  "id, title, desc, curr_score, curr_rank, created_by, created_at";
+// Matches the ideas table schema (no created_by/created_at columns — see elo_schema.sql).
+const IDEA_SELECT = "id, title, desc, curr_score, curr_rank";
 // list select also pulls each idea's per-category ELO for /5 rating
 const IDEA_LIST_SELECT =
   IDEA_SELECT + ", idea_scores(category_id, curr_score, curr_rank)";
-
-type SupabaseUser = {
-  id: string;
-  email?: string;
-  user_metadata?: any;
-};
 
 function ideaPayload(row: any) {
   return {
