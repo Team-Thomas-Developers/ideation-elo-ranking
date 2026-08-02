@@ -108,17 +108,21 @@ export async function getSupabaseScoreHistory() {
     .select(
       'id, idea_id, round_id, score_after_round, rank_after_round, rounds(round_num)',
     )
-    .order('round_id', { ascending: true })
 
   if (error) throw error
 
-  return data.map((entry) => ({
-    id: entry.id,
-    round_id: entry.round_id,
-    roundNumber: entry.rounds?.round_num,
-    teamId: entry.idea_id,
-    elo: entry.score_after_round,
-    score: entry.score_after_round,
-    rank: entry.rank_after_round,
-  }))
+  // Sort chronologically by round number. (round_id is a UUID, so ordering by
+  // it scrambles the chart's lines — the points must be in round order for the
+  // per-idea path to read left-to-right.)
+  return data
+    .map((entry) => ({
+      id: entry.id,
+      round_id: entry.round_id,
+      roundNumber: entry.rounds?.round_num ?? 0,
+      teamId: entry.idea_id,
+      elo: entry.score_after_round,
+      score: entry.score_after_round,
+      rank: entry.rank_after_round,
+    }))
+    .sort((a, b) => a.roundNumber - b.roundNumber)
 }

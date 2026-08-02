@@ -22,7 +22,7 @@ const Signin = () => {
         setError('')
       }, 3000)
     } else {
-      navigate('/dashboard')
+      navigate('/')
     }
 
     if (session) {

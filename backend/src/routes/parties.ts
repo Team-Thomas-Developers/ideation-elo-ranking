@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { generatePartyCode } from '../lib/partyCode';
 import { getAuthenticatedUser } from '../lib/auth';
+import { generateRoundMatchups } from '../services/gameEngine';
 
 // ============================================================
 // PARTY / ROOM ROUTES
@@ -193,40 +194,10 @@ router.post('/:partyId/start', async (req, res) => {
     .single();
   if (roundInsertError) throw roundInsertError;
 
-  // create matchups for every current party member
-  const { data: members, error: membersError } = await supabase
-    .from('party_members')
-    .select('user_id')
-    .eq('party_id', party.id);
-  if (membersError) throw membersError;
-
-  const { data: ideas, error: ideasError } = await supabase
-    .from('ideas')
-    .select('id');
-  if (ideasError) throw ideasError;
-  if (!ideas || ideas.length < 2) {
-    // nothing to insert — leave room active but no matchups
-    return res.json(await loadPartyWithMembers(party.id));
-  }
-
-  // for each member, pick two random distinct ideas and create a matchup
-  const ideaIds = (ideas as any[]).map((i) => i.id);
-  const matchups = (members ?? []).map((m: any) => {
-    // pick two distinct random indices
-    const a = Math.floor(Math.random() * ideaIds.length);
-    let b = Math.floor(Math.random() * ideaIds.length);
-    if (b === a) b = (b + 1) % ideaIds.length;
-    return {
-      round_id: round.id,
-      user_id: m.user_id,
-      idea_a: ideaIds[a],
-      idea_b: ideaIds[b],
-      status: false,
-    };
-  });
-
-  const { error: matchupsError } = await supabase.from('matchups').insert(matchups);
-  if (matchupsError) throw matchupsError;
+  // Deal out the first set of pairings. The engine keeps opening rounds
+  // automatically after this one (see advancePartyIfRoundComplete) until every
+  // idea-pair has been compared, so the leader does nothing else.
+  await generateRoundMatchups(party.id, round.id);
 
   res.json(await loadPartyWithMembers(party.id));
 });

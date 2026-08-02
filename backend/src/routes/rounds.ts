@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { Round } from '../types';
 import { getAuthenticatedUser } from '../lib/auth';
+import { generateRoundMatchups } from '../services/gameEngine';
 
 const router = Router();
 
@@ -116,18 +117,59 @@ router.get('/current', async (req, res) => {
   }
 });
 
-// open a new round, closing any active one first
-router.post('/', async (_req, res) => {
+// Manually open the next round for the caller's own party (leader only).
+// Rounds normally advance automatically after every member votes; this is an
+// escape hatch. It is scoped to the caller's party and never touches other
+// parties' rounds. (The old version had no auth and closed EVERY active round
+// across all parties.)
+router.post('/', async (req, res) => {
   try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'auth required' });
+      return;
+    }
+
+    const { data: membership, error: membershipError } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', user.id)
+      .order('joined_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (membershipError) throw membershipError;
+    if (!membership) {
+      res.status(400).json({ error: 'join a party first' });
+      return;
+    }
+
+    const { data: party, error: partyError } = await supabase
+      .from('parties')
+      .select('id, leader_id')
+      .eq('id', membership.party_id)
+      .maybeSingle();
+    if (partyError) throw partyError;
+    if (!party) {
+      res.status(404).json({ error: 'party not found' });
+      return;
+    }
+    if (party.leader_id !== user.id) {
+      res.status(403).json({ error: 'only the room leader can open a round' });
+      return;
+    }
+
+    // close only THIS party's active round(s)
     const { error: closeError } = await supabase
       .from('rounds')
       .update({ status: false })
+      .eq('party_id', party.id)
       .eq('status', true);
     if (closeError) throw closeError;
 
     const { data: latest, error: latestError } = await supabase
       .from('rounds')
       .select('round_num')
+      .eq('party_id', party.id)
       .order('round_num', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -137,10 +179,19 @@ router.post('/', async (_req, res) => {
 
     const { data: round, error: insertError } = await supabase
       .from('rounds')
-      .insert({ round_num: nextNum, status: true })
+      .insert({ party_id: party.id, round_num: nextNum, status: true })
       .select('id, round_num, status')
       .single();
     if (insertError) throw insertError;
+
+    const created = await generateRoundMatchups(party.id, round.id);
+    if (created === 0) {
+      // nothing left to compare — undo and report the game is over
+      await supabase.from('rounds').delete().eq('id', round.id);
+      await supabase.from('parties').update({ status: 'done' }).eq('id', party.id);
+      res.status(409).json({ error: 'all idea pairs have been compared; game over' });
+      return;
+    }
 
     res.status(201).json(round as Round);
   } catch (err) {

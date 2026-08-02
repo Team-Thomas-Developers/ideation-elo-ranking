@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { UserAuth } from '../context/AuthContext'
 import {
   getMyParty,
@@ -8,7 +8,6 @@ import {
   startParty,
   leaveParty,
   getCurrentRound,
-  getMatchups,
   submitVote,
   getCategories,
 } from '../lib/partyApi'
@@ -17,11 +16,15 @@ import './PartyRoom.css'
 // ============================================================
 // PARTY ROOM  — fully wired to the backend
 // ------------------------------------------------------------
-// Loads the signed-in user's current room, and lets them
-// create / join / start / leave. The roster (incl. who's the
-// leader) and status come straight from the database. Polls
-// every 4s so the room stays in sync while in the lobby.
+// Lobby: create / join / start / leave, with live roster.
+// Game:  the backend auto-advances rounds. This screen just
+//        polls the current round and shows the right thing —
+//        your matchup to vote on, a "waiting for others" screen,
+//        or the final results when the party is done. The leader
+//        does nothing after pressing Start.
 // ============================================================
+
+const POLL_MS = 2500
 
 const PartyRoom = () => {
   const { session } = UserAuth()
@@ -35,13 +38,13 @@ const PartyRoom = () => {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [activeRound, setActiveRound] = useState(null)
-  const [matchups, setMatchups] = useState([])
-  const [currentMatchupIndex, setCurrentMatchupIndex] = useState(0)
-  const [matchupsLoading, setMatchupsLoading] = useState(false)
-  const [votingComplete, setVotingComplete] = useState(false)
+
+  // game state, driven by polling /rounds/current
+  const [round, setRound] = useState(null) // { round_number, total_matchups, completed_matchups, user_matchups }
   const [categories, setCategories] = useState([])
   const [picks, setPicks] = useState({}) // categoryId -> winning ideaId
+  const [phase, setPhase] = useState('loading') // loading | voting | waiting | done
+  const shownMatchupId = useRef(null)
 
   const refresh = useCallback(async () => {
     if (!token) return
@@ -56,77 +59,71 @@ const PartyRoom = () => {
     }
   }, [token])
 
-  // initial load + light polling while in a lobby
+  // initial load + light polling while in a lobby (to see people join / game start)
   useEffect(() => {
     refresh()
   }, [refresh])
 
   useEffect(() => {
-    if (!party || party.status !== 'lobby') return
+    if (!party || party.status === 'active') return
     const id = setInterval(refresh, 4000)
     return () => clearInterval(id)
   }, [party, refresh])
 
+  // load the fixed category list once
   useEffect(() => {
-    let ignore = false
+    if (!token) return
+    getCategories(token)
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [token])
 
-    const loadVotingState = async () => {
-      if (!token || !userId || !party || party.status !== 'active') {
-        if (!ignore) {
-          setActiveRound(null)
-          setMatchups([])
-          setCurrentMatchupIndex(0)
-          setVotingComplete(false)
-        }
-        return
-      }
+  // ---- the game loop: poll the current round while the party is active ----
+  useEffect(() => {
+    if (!token || !party || party.status !== 'active') return
 
-      if (!ignore) {
-        setMatchupsLoading(true)
-        setError(null)
-      }
+    let stop = false
 
+    const poll = async () => {
       try {
-        const round = await getCurrentRound(token)
-        const [matchupData, categoryData] = await Promise.all([
-          getMatchups(token, userId, round.id),
-          getCategories(token),
-        ])
-        if (!ignore) {
-          setActiveRound(round)
-          setMatchups(Array.isArray(matchupData) ? matchupData : [])
-          setCategories(Array.isArray(categoryData) ? categoryData : [])
-          setCurrentMatchupIndex(0)
-          setVotingComplete(false)
-        }
+        const data = await getCurrentRound(token)
+        if (stop) return
+        setRound(data)
+        const open = (data.user_matchups || []).filter((m) => !m.status)
+        // voting if you still have a matchup; otherwise you're done -> waiting
+        setPhase(open.length > 0 ? 'voting' : 'waiting')
       } catch (err) {
-        if (!ignore) {
-          setActiveRound(null)
-          setMatchups([])
-          setCurrentMatchupIndex(0)
-          setVotingComplete(false)
+        if (stop) return
+        // no active round for your party => the game finished
+        if (/no active round/i.test(err.message)) {
+          setPhase('done')
+          refresh() // pick up party.status === 'done'
+        } else {
           setError(err.message)
         }
-      } finally {
-        if (!ignore) setMatchupsLoading(false)
       }
     }
 
-    loadVotingState()
-
+    poll()
+    const id = setInterval(poll, POLL_MS)
     return () => {
-      ignore = true
+      stop = true
+      clearInterval(id)
     }
-  }, [party?.id, party?.status, token, userId])
+  }, [token, party?.id, party?.status, refresh])
 
-  const currentMatchup = matchups[currentMatchupIndex]
+  const openMatchups = (round?.user_matchups || []).filter((m) => !m.status)
+  const currentMatchup = openMatchups[0] ?? null
 
-  // clear picks whenever we move to a new matchup
+  // clear picks whenever the matchup we're showing changes
   useEffect(() => {
-    setPicks({})
+    if (currentMatchup?.id !== shownMatchupId.current) {
+      shownMatchupId.current = currentMatchup?.id ?? null
+      setPicks({})
+    }
   }, [currentMatchup?.id])
 
-  // run an action, then refresh state
+  // run a lobby action (create/join/start/leave), then update party state
   const run = async (fn) => {
     setBusy(true)
     setError(null)
@@ -141,13 +138,51 @@ const PartyRoom = () => {
     }
   }
 
+  const allPicked = categories.length > 0 && categories.every((c) => picks[c.id])
+
+  const pickCategory = (categoryId, ideaId) => {
+    if (busy) return
+    setPicks((prev) => ({ ...prev, [categoryId]: ideaId }))
+  }
+
+  const handleSubmit = async () => {
+    if (!currentMatchup || busy || !allPicked) return
+    setBusy(true)
+    setError(null)
+    try {
+      await submitVote(token, { matchupId: currentMatchup.id, winners: picks })
+      setPicks({})
+      // re-poll right away so the next matchup / waiting screen shows immediately
+      const data = await getCurrentRound(token).catch((err) => {
+        if (/no active round/i.test(err.message)) {
+          setPhase('done')
+          refresh()
+          return null
+        }
+        throw err
+      })
+      if (data) {
+        setRound(data)
+        const open = (data.user_matchups || []).filter((m) => !m.status)
+        setPhase(open.length > 0 ? 'voting' : 'waiting')
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (!session) return <p>Please sign in to use party rooms.</p>
   if (loading) return <p>Loading…</p>
 
-  // ---- Not in a room: show create / join ----
+  // ---- Not in a room: create / join ----
   if (!party) {
     return (
       <div className="party-page">
+        <Link className="party-back-link" to="/">
+          ← Home
+        </Link>
         {error && <p className="party-error">{error}</p>}
         <section className="party-actions">
           <div className="party-join">
@@ -163,14 +198,14 @@ const PartyRoom = () => {
               disabled={busy}
               onClick={() => run(() => createParty(token, roomName))}
             >
-              Create Room
+              Create Party
             </button>
           </div>
           <div className="party-join">
             <input
               className="party-input"
-              placeholder="Enter code"
-              maxLength={6}
+              placeholder="Enter 4-letter code"
+              maxLength={4}
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
             />
@@ -180,7 +215,7 @@ const PartyRoom = () => {
               disabled={busy || !code}
               onClick={() => run(() => joinParty(token, code))}
             >
-              Join
+              Join Party
             </button>
           </div>
         </section>
@@ -188,41 +223,13 @@ const PartyRoom = () => {
     )
   }
 
-  const allPicked =
-    categories.length > 0 && categories.every((c) => picks[c.id])
+  const youAreLeader = party.leader_id === userId
 
-  const pickCategory = (categoryId, ideaId) => {
-    if (busy) return
-    setPicks((prev) => ({ ...prev, [categoryId]: ideaId }))
-  }
-
-  const handleSubmit = async () => {
-    if (!currentMatchup || busy || !allPicked) return
-
-    setBusy(true)
-    setError(null)
-
-    try {
-      await submitVote(token, {
-        matchupId: currentMatchup.id,
-        winners: picks,
-      })
-
-      if (currentMatchupIndex + 1 >= matchups.length) {
-        setVotingComplete(true)
-        setMatchups([])
-        setCurrentMatchupIndex(0)
-      } else {
-        setCurrentMatchupIndex((value) => value + 1)
-      }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
+  // ---- Game in progress ----
   if (party.status === 'active') {
+    const total = round?.total_matchups ?? 0
+    const completed = round?.completed_matchups ?? 0
+
     return (
       <div className="party-page">
         {error && <p className="party-error">{error}</p>}
@@ -234,37 +241,26 @@ const PartyRoom = () => {
             </div>
             <div className="party-code">
               <span className="party-code__label">Round</span>
-              <span className="party-code__value">
-                {activeRound?.round_number ?? 1}
-              </span>
+              <span className="party-code__value">{round?.round_number ?? 1}</span>
             </div>
           </header>
 
-          {matchupsLoading ? (
-            <p>Loading matchup…</p>
-          ) : votingComplete || !currentMatchup ? (
+          {phase === 'loading' && <p>Loading matchup…</p>}
+
+          {phase === 'done' && (
             <div>
-              <h3>Voting complete</h3>
+              <h3>Game over 🎉</h3>
               <p>
-                You&apos;ve finished the current round. Your votes have been
-                recorded and the leaderboard will reflect the latest Elo
-                changes.
+                Every idea has been compared. Head to the dashboard to see the
+                final ranking and how scores moved.
               </p>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                  marginTop: 16,
-                }}
-              >
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
                 <button
                   className="party-btn party-btn--primary"
                   type="button"
-                  disabled={busy}
                   onClick={() => navigate('/dashboard')}
                 >
-                  Go to dashboard
+                  View results
                 </button>
                 <button
                   className="party-btn party-btn--ghost"
@@ -276,29 +272,57 @@ const PartyRoom = () => {
                 </button>
               </div>
             </div>
-          ) : (
-            <div>
-              <p>
-                Pick the stronger idea in every category for matchup{' '}
-                {currentMatchupIndex + 1} of {matchups.length}.
+          )}
+
+          {phase === 'waiting' && (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <h3>Waiting for others…</h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginTop: 8 }}>
+                {completed} of {total} votes in this round
               </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
+                {Array.from({ length: total }).map((_, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      background:
+                        i < completed
+                          ? 'var(--color-background-success, #2e7d32)'
+                          : 'var(--color-border-secondary, #ccc)',
+                      transition: 'background 0.3s',
+                    }}
+                  />
+                ))}
+              </div>
+              <p style={{ color: 'var(--color-text-secondary)', marginTop: 20, fontSize: 13 }}>
+                The next round starts automatically once everyone has voted.
+              </p>
+            </div>
+          )}
+
+          {phase === 'voting' && currentMatchup && (
+            <div>
+              <p>Pick the stronger idea in every category, then submit.</p>
 
               {/* header: the two ideas being compared */}
               <div className="ballot-grid ballot-header">
                 <div />
                 <div className="ballot-idea-head">
                   <strong>{currentMatchup.idea_a?.title || 'Idea A'}</strong>
-                  {currentMatchup.idea_a?.desc && (
+                  {(currentMatchup.idea_a?.desc || currentMatchup.idea_a?.description) && (
                     <div className="ballot-idea-desc">
-                      {currentMatchup.idea_a.desc}
+                      {currentMatchup.idea_a.desc ?? currentMatchup.idea_a.description}
                     </div>
                   )}
                 </div>
                 <div className="ballot-idea-head">
                   <strong>{currentMatchup.idea_b?.title || 'Idea B'}</strong>
-                  {currentMatchup.idea_b?.desc && (
+                  {(currentMatchup.idea_b?.desc || currentMatchup.idea_b?.description) && (
                     <div className="ballot-idea-desc">
-                      {currentMatchup.idea_b.desc}
+                      {currentMatchup.idea_b.desc ?? currentMatchup.idea_b.description}
                     </div>
                   )}
                 </div>
@@ -314,9 +338,7 @@ const PartyRoom = () => {
                     <button
                       type="button"
                       disabled={busy}
-                      className={`ballot-choice${
-                        picks[category.id] === ideaAId ? ' is-selected' : ''
-                      }`}
+                      className={`ballot-choice${picks[category.id] === ideaAId ? ' is-selected' : ''}`}
                       onClick={() => pickCategory(category.id, ideaAId)}
                     >
                       {picks[category.id] === ideaAId ? '✓ ' : ''}
@@ -325,9 +347,7 @@ const PartyRoom = () => {
                     <button
                       type="button"
                       disabled={busy}
-                      className={`ballot-choice${
-                        picks[category.id] === ideaBId ? ' is-selected' : ''
-                      }`}
+                      className={`ballot-choice${picks[category.id] === ideaBId ? ' is-selected' : ''}`}
                       onClick={() => pickCategory(category.id, ideaBId)}
                     >
                       {picks[category.id] === ideaBId ? '✓ ' : ''}
@@ -347,9 +367,7 @@ const PartyRoom = () => {
                 {busy ? 'Submitting…' : 'Submit votes'}
               </button>
               {!allPicked && (
-                <p className="ballot-hint">
-                  Choose a winner in every category to submit.
-                </p>
+                <p className="ballot-hint">Choose a winner in every category to submit.</p>
               )}
             </div>
           )}
@@ -358,15 +376,24 @@ const PartyRoom = () => {
     )
   }
 
-  // ---- In a room: show the room + roster ----
+  // ---- Lobby: room + roster ----
   const roster = [...party.members].sort(
     (a, b) => Number(b.is_leader) - Number(a.is_leader),
   )
-  const youAreLeader = party.leader_id === userId
 
   return (
     <div className="party-page">
+      <Link className="party-back-link" to="/">
+        ← Home
+      </Link>
       {error && <p className="party-error">{error}</p>}
+
+      {youAreLeader && party.status === 'lobby' && (
+        <div className="party-host-banner">
+          👑 You’re the party host — start the game when everyone’s in.
+        </div>
+      )}
+
       <section className="party-card">
         <header className="party-card__header">
           <div>
@@ -402,7 +429,7 @@ const PartyRoom = () => {
                     (m.is_leader ? ' party-member__role--leader' : '')
                   }
                 >
-                  {m.is_leader ? 'Leader' : 'Player'}
+                  {m.is_leader ? 'Host' : 'Player'}
                 </span>
               </li>
             ))}
@@ -417,8 +444,11 @@ const PartyRoom = () => {
               disabled={busy}
               onClick={() => run(() => startParty(token, party.id))}
             >
-              Start session
+              Start game
             </button>
+          )}
+          {!youAreLeader && party.status === 'lobby' && (
+            <span className="party-hint">Waiting for the host to start…</span>
           )}
           <button
             className="party-btn party-btn--ghost"

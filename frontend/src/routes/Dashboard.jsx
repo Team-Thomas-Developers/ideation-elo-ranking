@@ -95,6 +95,9 @@ const Dashboard = () => {
             <span>Data Source</span>
             <strong>{dataSource}</strong>
           </div>
+          <Link className="sign-out-button header-link" to="/">
+            Home
+          </Link>
           <Link className="sign-out-button header-link" to="/ideas">
             Manage Ideas
           </Link>
