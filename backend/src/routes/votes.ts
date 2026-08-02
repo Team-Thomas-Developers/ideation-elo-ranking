@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
 import { applyMatchupVotes } from '../services/ratings';
+import { advancePartyIfRoundComplete } from '../services/gameEngine';
+import { withLock } from '../lib/mutex';
 import { CATEGORY_IDS } from '../lib/categories';
 import { Matchup } from '../types';
 import { getAuthenticatedUser } from '../lib/auth';
@@ -75,34 +77,15 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    const outcome = await applyMatchupVotes(m, winners);
-
-    const { data: roundInfo, error: roundInfoError } = await supabase
-      .from('rounds')
-      .select('id, party_id')
-      .eq('id', m.round_id)
-      .maybeSingle();
-    if (roundInfoError) throw roundInfoError;
-
-    if (roundInfo?.id) {
-      const { count: completedCount, error: completedCountError } = await supabase
-        .from('matchups')
-        .select('id', { count: 'exact', head: true })
-        .eq('round_id', roundInfo.id)
-        .eq('status', true);
-      if (completedCountError) throw completedCountError;
-
-      const { count: totalCount, error: totalCountError } = await supabase
-        .from('matchups')
-        .select('id', { count: 'exact', head: true })
-        .eq('round_id', roundInfo.id);
-      if (totalCountError) throw totalCountError;
-
-      if (typeof completedCount === 'number' && typeof totalCount === 'number' && completedCount === totalCount) {
-        await supabase.from('rounds').update({ status: false }).eq('id', roundInfo.id);
-        await supabase.from('parties').update({ status: 'done' }).eq('id', roundInfo.party_id);
-      }
-    }
+    // Apply the vote and (if the round is now finished) advance the game under
+    // a serialization lock. Both steps touch shared ELO/round state, so running
+    // them one-at-a-time prevents concurrent votes from clobbering each other
+    // (lost updates) or two finishers both opening the next round.
+    const outcome = await withLock(async () => {
+      const result = await applyMatchupVotes(m, winners);
+      await advancePartyIfRoundComplete(m.round_id);
+      return result;
+    });
 
     res.status(201).json({ round_id: m.round_id, ...outcome });
   } catch (err) {

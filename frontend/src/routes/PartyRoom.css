@@ -234,3 +234,31 @@
   font-size: 13px;
   color: #8a8a92;
 }
+
+.party-back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #8a8a92;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.party-back-link:hover {
+  color: #d8d8dd;
+}
+
+/* Host banner shown to the party leader in the lobby */
+.party-host-banner {
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #14361f;
+  border: 1px solid #2f7d4e;
+  color: #a8f0c1;
+  font-weight: 600;
+}
+.party-hint {
+  align-self: center;
+  color: #8a8a92;
+  font-size: 14px;
+}

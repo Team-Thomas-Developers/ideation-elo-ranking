@@ -20,8 +20,11 @@ const Ideas = () => {
           <h1>Manage Ideas</h1>
         </div>
         <div className="header-actions">
+          <Link className="sign-out-button header-link" to="/">
+            Home
+          </Link>
           <Link className="sign-out-button header-link" to="/dashboard">
-            Dashboard
+            Leaderboard
           </Link>
           <button
             className="sign-out-button"

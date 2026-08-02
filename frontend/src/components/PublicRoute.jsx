@@ -9,7 +9,7 @@ const PublicRoute = ({ children }) => {
     return <div>Loading...</div>
   }
 
-  return session ? <Navigate to="/dashboard" replace /> : <>{children}</>
+  return session ? <Navigate to="/" replace /> : <>{children}</>
 }
 
 export default PublicRoute
