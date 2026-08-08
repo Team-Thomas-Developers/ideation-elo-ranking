@@ -1,7 +1,46 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase';
+import { computeRatings } from '../lib/rating';
 
 const router = Router();
+
+const LEADERBOARD_SELECT =
+  'id, title, curr_score, curr_rank, idea_scores(category_id, curr_score, curr_rank)';
+
+// Current standings: every idea with its overall + per-category /5 ratings.
+router.get('/', async (_req, res) => {
+  const { data, error } = await supabase.from('ideas').select(LEADERBOARD_SELECT);
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const rows = data ?? [];
+  const ratings = computeRatings(
+    rows.map((row: any) => ({
+      id: row.id,
+      scores: (row.idea_scores ?? []).map((s: any) => ({
+        category_id: s.category_id,
+        curr_score: s.curr_score,
+      })),
+    })),
+  );
+
+  const payload = rows.map((row: any) => {
+    const rated = ratings.get(row.id);
+    return {
+      id: row.id,
+      title: row.title,
+      curr_score: row.curr_score,
+      curr_rank: row.curr_rank,
+      scores: rated?.scores ?? [],
+      overall_rating: rated?.overall_rating ?? null,
+    };
+  });
+  payload.sort((a, b) => (b.overall_rating ?? 0) - (a.overall_rating ?? 0));
+
+  res.json(payload);
+});
 
 // Score and rank history ordered chronologically for the leaderboard chart.
 router.get('/history', async (_req, res) => {
