@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { supabase } from '../lib/supabase';
-import { Idea, Matchup } from '../types';
+import { Router } from "express";
+import { supabase } from "../lib/supabase";
+import { Idea, Matchup } from "../types";
 
 const router = Router();
 
@@ -27,43 +27,43 @@ function hydrate(matchups: Matchup[], ideasById: Map<string, Idea>) {
 }
 
 // this user's pairings for a round, made on first request (roundId defaults to the active round)
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const userId = req.query.userId as string | undefined;
     if (!userId) {
-      res.status(400).json({ error: 'userId query parameter is required' });
+      res.status(400).json({ error: "userId query parameter is required" });
       return;
     }
 
     let roundId = req.query.roundId as string | undefined;
     if (!roundId) {
       const { data: round, error: roundError } = await supabase
-        .from('rounds')
-        .select('id')
-        .eq('status', true)
-        .order('round_num', { ascending: false })
+        .from("rounds")
+        .select("id")
+        .eq("status", true)
+        .order("round_num", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (roundError) throw roundError;
       if (!round) {
-        res.status(404).json({ error: 'No active round. Create one first.' });
+        res.status(404).json({ error: "No active round. Create one first." });
         return;
       }
       roundId = round.id;
     }
 
     const { data: ideas, error: ideasError } = await supabase
-      .from('ideas')
-      .select('id, title, desc, curr_score, curr_rank');
+      .from("ideas")
+      .select("id, title, desc, curr_score, curr_rank");
     if (ideasError) throw ideasError;
     const ideasById = new Map((ideas as Idea[]).map((i) => [i.id, i]));
 
     // already made? return them
     const { data: existing, error: existingError } = await supabase
-      .from('matchups')
-      .select('id, round_id, user_id, idea_a, idea_b, status')
-      .eq('round_id', roundId)
-      .eq('user_id', userId);
+      .from("matchups")
+      .select("id, round_id, user_id, idea_a, idea_b, status")
+      .eq("round_id", roundId)
+      .eq("user_id", userId);
     if (existingError) throw existingError;
 
     if (existing && existing.length > 0) {
@@ -72,7 +72,9 @@ router.get('/', async (req, res) => {
     }
 
     if (!ideas || ideas.length < 2) {
-      res.status(400).json({ error: 'Need at least 2 ideas to build matchups' });
+      res
+        .status(400)
+        .json({ error: "Need at least 2 ideas to build matchups" });
       return;
     }
 
@@ -90,9 +92,9 @@ router.get('/', async (req, res) => {
     }
 
     const { data: inserted, error: insertError } = await supabase
-      .from('matchups')
+      .from("matchups")
       .insert(rows)
-      .select('id, round_id, user_id, idea_a, idea_b, status');
+      .select("id, round_id, user_id, idea_a, idea_b, status");
     if (insertError) throw insertError;
 
     res.status(201).json(hydrate(inserted as Matchup[], ideasById));

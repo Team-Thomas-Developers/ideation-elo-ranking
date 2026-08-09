@@ -29,9 +29,7 @@ function cleanText(value: unknown) {
 
 // ideas ranked by overall /5, best first, each with per-category /5 breakdown
 router.get("/", async (_req, res) => {
-  const { data, error } = await supabase
-    .from("ideas")
-    .select(IDEA_LIST_SELECT);
+  const { data, error } = await supabase.from("ideas").select(IDEA_LIST_SELECT);
 
   if (error) {
     res.status(500).json({ error: error.message });

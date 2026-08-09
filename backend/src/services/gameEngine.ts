@@ -9,7 +9,7 @@
 // Full pairwise coverage is what turns a pile of votes into a real ranking:
 // every idea gets compared against every other idea at least once.
 
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 // every unique unordered pair of ideas
 function allPairs(ids: string[]): [string, string][] {
@@ -24,7 +24,7 @@ function allPairs(ids: string[]): [string, string][] {
 
 // order-independent key so (a,b) and (b,a) count as the same pairing
 function pairKey(a: string, b: string): string {
-  return [a, b].sort().join('|');
+  return [a, b].sort().join("|");
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -39,18 +39,18 @@ function shuffle<T>(items: T[]): T[] {
 // every idea-pair already assigned as a matchup anywhere in this party
 async function usedPairKeys(partyId: string): Promise<Set<string>> {
   const { data: rounds, error: roundsError } = await supabase
-    .from('rounds')
-    .select('id')
-    .eq('party_id', partyId);
+    .from("rounds")
+    .select("id")
+    .eq("party_id", partyId);
   if (roundsError) throw roundsError;
 
   const roundIds = (rounds ?? []).map((r) => r.id);
   if (roundIds.length === 0) return new Set();
 
   const { data: matchups, error: matchupsError } = await supabase
-    .from('matchups')
-    .select('idea_a, idea_b')
-    .in('round_id', roundIds);
+    .from("matchups")
+    .select("idea_a, idea_b")
+    .in("round_id", roundIds);
   if (matchupsError) throw matchupsError;
 
   return new Set((matchups ?? []).map((m) => pairKey(m.idea_a, m.idea_b)));
@@ -62,11 +62,13 @@ export async function generateRoundMatchups(
   partyId: string,
   roundId: string,
 ): Promise<number> {
-  const [{ data: members, error: membersError }, { data: ideas, error: ideasError }] =
-    await Promise.all([
-      supabase.from('party_members').select('user_id').eq('party_id', partyId),
-      supabase.from('ideas').select('id'),
-    ]);
+  const [
+    { data: members, error: membersError },
+    { data: ideas, error: ideasError },
+  ] = await Promise.all([
+    supabase.from("party_members").select("user_id").eq("party_id", partyId),
+    supabase.from("ideas").select("id"),
+  ]);
   if (membersError) throw membersError;
   if (ideasError) throw ideasError;
 
@@ -93,7 +95,7 @@ export async function generateRoundMatchups(
   }
   if (rows.length === 0) return 0;
 
-  const { error: insertError } = await supabase.from('matchups').insert(rows);
+  const { error: insertError } = await supabase.from("matchups").insert(rows);
   if (insertError) throw insertError;
   return rows.length;
 }
@@ -101,42 +103,54 @@ export async function generateRoundMatchups(
 // Called after every vote. If the round is now fully voted, close it and open
 // the next one (with fresh pairings). If there are no pairs left to compare,
 // finish the party.
-export async function advancePartyIfRoundComplete(roundId: string): Promise<void> {
+export async function advancePartyIfRoundComplete(
+  roundId: string,
+): Promise<void> {
   const { data: round, error: roundError } = await supabase
-    .from('rounds')
-    .select('id, round_num, party_id, status')
-    .eq('id', roundId)
+    .from("rounds")
+    .select("id, round_num, party_id, status")
+    .eq("id", roundId)
     .maybeSingle();
   if (roundError) throw roundError;
   // only auto-advance party rounds that are still open
   if (!round || !round.party_id || round.status === false) return;
 
   const [{ count: total }, { count: done }] = await Promise.all([
-    supabase.from('matchups').select('id', { count: 'exact', head: true }).eq('round_id', roundId),
     supabase
-      .from('matchups')
-      .select('id', { count: 'exact', head: true })
-      .eq('round_id', roundId)
-      .eq('status', true),
+      .from("matchups")
+      .select("id", { count: "exact", head: true })
+      .eq("round_id", roundId),
+    supabase
+      .from("matchups")
+      .select("id", { count: "exact", head: true })
+      .eq("round_id", roundId)
+      .eq("status", true),
   ]);
   // round has no matchups, or not everyone has voted yet
   if (!total || done !== total) return;
 
   // close the finished round
-  await supabase.from('rounds').update({ status: false }).eq('id', roundId);
+  await supabase.from("rounds").update({ status: false }).eq("id", roundId);
 
   // open the next round and deal out the next set of pairings
   const { data: next, error: nextError } = await supabase
-    .from('rounds')
-    .insert({ party_id: round.party_id, round_num: round.round_num + 1, status: true })
-    .select('id')
+    .from("rounds")
+    .insert({
+      party_id: round.party_id,
+      round_num: round.round_num + 1,
+      status: true,
+    })
+    .select("id")
     .single();
   if (nextError) throw nextError;
 
   const created = await generateRoundMatchups(round.party_id, next.id);
   if (created === 0) {
     // nothing left to compare: drop the empty round and finish the party
-    await supabase.from('rounds').delete().eq('id', next.id);
-    await supabase.from('parties').update({ status: 'done' }).eq('id', round.party_id);
+    await supabase.from("rounds").delete().eq("id", next.id);
+    await supabase
+      .from("parties")
+      .update({ status: "done" })
+      .eq("id", round.party_id);
   }
 }

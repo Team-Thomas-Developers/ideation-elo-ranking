@@ -1,19 +1,19 @@
-import { Router } from 'express';
-import { supabase } from '../lib/supabase';
+import { Router } from "express";
+import { supabase } from "../lib/supabase";
 
 const router = Router();
 
 // Score and rank history ordered chronologically for the leaderboard chart.
-router.get('/history', async (_req, res) => {
+router.get("/history", async (_req, res) => {
   try {
     const [
       { data: historyRows, error: historyError },
       { data: rounds, error: roundsError },
     ] = await Promise.all([
       supabase
-        .from('scorehistory')
-        .select('id, idea_id, round_id, score_after_round, rank_after_round'),
-      supabase.from('rounds').select('id, round_num'),
+        .from("scorehistory")
+        .select("id, idea_id, round_id, score_after_round, rank_after_round"),
+      supabase.from("rounds").select("id, round_num"),
     ]);
 
     if (historyError) throw historyError;
