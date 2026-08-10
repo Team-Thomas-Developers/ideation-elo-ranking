@@ -30,7 +30,7 @@ export function calculateNewRatings(
   winnerRating: number,
   loserRating: number,
   winnerMatchups: number,
-  loserMatchups: number
+  loserMatchups: number,
 ): EloResult {
   const expectedWinner = expectedScore(winnerRating, loserRating);
   const expectedLoser = 1 - expectedWinner;

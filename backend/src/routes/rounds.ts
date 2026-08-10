@@ -1,17 +1,17 @@
-import { Router } from 'express';
-import { supabase } from '../lib/supabase';
-import { Round } from '../types';
-import { getAuthenticatedUser } from '../lib/auth';
-import { generateRoundMatchups } from '../services/gameEngine';
+import { Router } from "express";
+import { supabase } from "../lib/supabase";
+import { Round } from "../types";
+import { getAuthenticatedUser } from "../lib/auth";
+import { generateRoundMatchups } from "../services/gameEngine";
 
 const router = Router();
 
 // list rounds, newest first
-router.get('/', async (_req, res) => {
+router.get("/", async (_req, res) => {
   const { data, error } = await supabase
-    .from('rounds')
-    .select('id, round_num, status')
-    .order('round_num', { ascending: false });
+    .from("rounds")
+    .select("id, round_num, status")
+    .order("round_num", { ascending: false });
 
   if (error) {
     res.status(500).json({ error: error.message });
@@ -21,51 +21,53 @@ router.get('/', async (_req, res) => {
 });
 
 // Active round, aggregate progress, and the signed-in user's assigned matchups.
-router.get('/current', async (req, res) => {
+router.get("/current", async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
-      res.status(401).json({ error: 'auth required' });
+      res.status(401).json({ error: "auth required" });
       return;
     }
 
     const { data: membership, error: membershipError } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', user.id)
-      .order('joined_at', { ascending: false })
+      .from("party_members")
+      .select("party_id")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (membershipError) throw membershipError;
     if (!membership) {
-      res.status(404).json({ error: 'No party membership found' });
+      res.status(404).json({ error: "No party membership found" });
       return;
     }
 
     const { data: round, error: roundError } = await supabase
-      .from('rounds')
-      .select('id, round_num, status')
-      .eq('party_id', membership.party_id)
-      .eq('status', true)
-      .order('round_num', { ascending: false })
+      .from("rounds")
+      .select("id, round_num, status")
+      .eq("party_id", membership.party_id)
+      .eq("status", true)
+      .order("round_num", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (roundError) throw roundError;
     if (!round) {
-      res.status(404).json({ error: 'No active round for your party' });
+      res.status(404).json({ error: "No active round for your party" });
       return;
     }
 
     const { data: matchups, error: matchupsError } = await supabase
-      .from('matchups')
-      .select('id, user_id, idea_a, idea_b, status')
-      .eq('round_id', round.id);
+      .from("matchups")
+      .select("id, user_id, idea_a, idea_b, status")
+      .eq("round_id", round.id);
     if (matchupsError) throw matchupsError;
 
     const allMatchups = matchups ?? [];
     const ideaIds = [
-      ...new Set(allMatchups.flatMap((matchup) => [matchup.idea_a, matchup.idea_b])),
+      ...new Set(
+        allMatchups.flatMap((matchup) => [matchup.idea_a, matchup.idea_b]),
+      ),
     ];
     const matchupIds = allMatchups.map((matchup) => matchup.id);
 
@@ -74,13 +76,16 @@ router.get('/current', async (req, res) => {
       { data: votes, error: votesError },
     ] = await Promise.all([
       ideaIds.length
-        ? supabase.from('ideas').select('id, title, desc, curr_score, curr_rank').in('id', ideaIds)
+        ? supabase
+            .from("ideas")
+            .select("id, title, desc, curr_score, curr_rank")
+            .in("id", ideaIds)
         : Promise.resolve({ data: [], error: null }),
       matchupIds.length
         ? supabase
-            .from('votes')
-            .select('matchup_id, user_id, winner_id')
-            .in('matchup_id', matchupIds)
+            .from("votes")
+            .select("matchup_id, user_id, winner_id")
+            .in("matchup_id", matchupIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -94,13 +99,17 @@ router.get('/current', async (req, res) => {
         .map((vote) => [vote.matchup_id, vote.winner_id]),
     );
 
-    const completedCount = allMatchups.filter((matchup) => matchup.status === true).length;
-    const userMatchups = allMatchups.filter((matchup) => matchup.user_id === user.id);
+    const completedCount = allMatchups.filter(
+      (matchup) => matchup.status === true,
+    ).length;
+    const userMatchups = allMatchups.filter(
+      (matchup) => matchup.user_id === user.id,
+    );
 
     res.json({
       id: round.id,
       round_number: round.round_num,
-      status: 'active',
+      status: "active",
       total_matchups: allMatchups.length,
       completed_matchups: completedCount,
       votes_cast: votes?.length ?? 0,
@@ -122,55 +131,55 @@ router.get('/current', async (req, res) => {
 // escape hatch. It is scoped to the caller's party and never touches other
 // parties' rounds. (The old version had no auth and closed EVERY active round
 // across all parties.)
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
-      res.status(401).json({ error: 'auth required' });
+      res.status(401).json({ error: "auth required" });
       return;
     }
 
     const { data: membership, error: membershipError } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', user.id)
-      .order('joined_at', { ascending: false })
+      .from("party_members")
+      .select("party_id")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (membershipError) throw membershipError;
     if (!membership) {
-      res.status(400).json({ error: 'join a party first' });
+      res.status(400).json({ error: "join a party first" });
       return;
     }
 
     const { data: party, error: partyError } = await supabase
-      .from('parties')
-      .select('id, leader_id')
-      .eq('id', membership.party_id)
+      .from("parties")
+      .select("id, leader_id")
+      .eq("id", membership.party_id)
       .maybeSingle();
     if (partyError) throw partyError;
     if (!party) {
-      res.status(404).json({ error: 'party not found' });
+      res.status(404).json({ error: "party not found" });
       return;
     }
     if (party.leader_id !== user.id) {
-      res.status(403).json({ error: 'only the room leader can open a round' });
+      res.status(403).json({ error: "only the room leader can open a round" });
       return;
     }
 
     // close only THIS party's active round(s)
     const { error: closeError } = await supabase
-      .from('rounds')
+      .from("rounds")
       .update({ status: false })
-      .eq('party_id', party.id)
-      .eq('status', true);
+      .eq("party_id", party.id)
+      .eq("status", true);
     if (closeError) throw closeError;
 
     const { data: latest, error: latestError } = await supabase
-      .from('rounds')
-      .select('round_num')
-      .eq('party_id', party.id)
-      .order('round_num', { ascending: false })
+      .from("rounds")
+      .select("round_num")
+      .eq("party_id", party.id)
+      .order("round_num", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (latestError) throw latestError;
@@ -178,18 +187,23 @@ router.post('/', async (req, res) => {
     const nextNum = (latest?.round_num ?? 0) + 1;
 
     const { data: round, error: insertError } = await supabase
-      .from('rounds')
+      .from("rounds")
       .insert({ party_id: party.id, round_num: nextNum, status: true })
-      .select('id, round_num, status')
+      .select("id, round_num, status")
       .single();
     if (insertError) throw insertError;
 
     const created = await generateRoundMatchups(party.id, round.id);
     if (created === 0) {
       // nothing left to compare — undo and report the game is over
-      await supabase.from('rounds').delete().eq('id', round.id);
-      await supabase.from('parties').update({ status: 'done' }).eq('id', party.id);
-      res.status(409).json({ error: 'all idea pairs have been compared; game over' });
+      await supabase.from("rounds").delete().eq("id", round.id);
+      await supabase
+        .from("parties")
+        .update({ status: "done" })
+        .eq("id", party.id);
+      res
+        .status(409)
+        .json({ error: "all idea pairs have been compared; game over" });
       return;
     }
 

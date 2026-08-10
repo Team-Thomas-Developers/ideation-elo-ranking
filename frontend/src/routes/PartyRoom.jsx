@@ -138,7 +138,8 @@ const PartyRoom = () => {
     }
   }
 
-  const allPicked = categories.length > 0 && categories.every((c) => picks[c.id])
+  const allPicked =
+    categories.length > 0 && categories.every((c) => picks[c.id])
 
   const pickCategory = (categoryId, ideaId) => {
     if (busy) return
@@ -241,7 +242,9 @@ const PartyRoom = () => {
             </div>
             <div className="party-code">
               <span className="party-code__label">Round</span>
-              <span className="party-code__value">{round?.round_number ?? 1}</span>
+              <span className="party-code__value">
+                {round?.round_number ?? 1}
+              </span>
             </div>
           </header>
 
@@ -254,7 +257,14 @@ const PartyRoom = () => {
                 Every idea has been compared. Head to the dashboard to see the
                 final ranking and how scores moved.
               </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginTop: 16,
+                }}
+              >
                 <button
                   className="party-btn party-btn--primary"
                   type="button"
@@ -280,7 +290,14 @@ const PartyRoom = () => {
               <p style={{ color: 'var(--color-text-secondary)', marginTop: 8 }}>
                 {completed} of {total} votes in this round
               </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginTop: 20,
+                }}
+              >
                 {Array.from({ length: total }).map((_, i) => (
                   <span
                     key={i}
@@ -297,7 +314,13 @@ const PartyRoom = () => {
                   />
                 ))}
               </div>
-              <p style={{ color: 'var(--color-text-secondary)', marginTop: 20, fontSize: 13 }}>
+              <p
+                style={{
+                  color: 'var(--color-text-secondary)',
+                  marginTop: 20,
+                  fontSize: 13,
+                }}
+              >
                 The next round starts automatically once everyone has voted.
               </p>
             </div>
@@ -312,17 +335,21 @@ const PartyRoom = () => {
                 <div />
                 <div className="ballot-idea-head">
                   <strong>{currentMatchup.idea_a?.title || 'Idea A'}</strong>
-                  {(currentMatchup.idea_a?.desc || currentMatchup.idea_a?.description) && (
+                  {(currentMatchup.idea_a?.desc ||
+                    currentMatchup.idea_a?.description) && (
                     <div className="ballot-idea-desc">
-                      {currentMatchup.idea_a.desc ?? currentMatchup.idea_a.description}
+                      {currentMatchup.idea_a.desc ??
+                        currentMatchup.idea_a.description}
                     </div>
                   )}
                 </div>
                 <div className="ballot-idea-head">
                   <strong>{currentMatchup.idea_b?.title || 'Idea B'}</strong>
-                  {(currentMatchup.idea_b?.desc || currentMatchup.idea_b?.description) && (
+                  {(currentMatchup.idea_b?.desc ||
+                    currentMatchup.idea_b?.description) && (
                     <div className="ballot-idea-desc">
-                      {currentMatchup.idea_b.desc ?? currentMatchup.idea_b.description}
+                      {currentMatchup.idea_b.desc ??
+                        currentMatchup.idea_b.description}
                     </div>
                   )}
                 </div>
@@ -367,7 +394,9 @@ const PartyRoom = () => {
                 {busy ? 'Submitting…' : 'Submit votes'}
               </button>
               {!allPicked && (
-                <p className="ballot-hint">Choose a winner in every category to submit.</p>
+                <p className="ballot-hint">
+                  Choose a winner in every category to submit.
+                </p>
               )}
             </div>
           )}

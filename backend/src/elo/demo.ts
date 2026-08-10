@@ -2,8 +2,8 @@
 // you pick the winner, and it prints how both ratings change.
 // run with: npm run elo
 
-import { createInterface } from 'readline';
-import { calculateNewRatings, getKFactor, STABILITY_THRESHOLD } from './elo';
+import { createInterface } from "readline";
+import { calculateNewRatings, getKFactor, STABILITY_THRESHOLD } from "./elo";
 
 // random starting rating in a realistic spread (1000-1799)
 function randomRating(): number {
@@ -48,11 +48,11 @@ function showResult(winner: Idea, loser: Idea): void {
     winner.matchups,
     loser.matchups,
   );
-  console.log('');
+  console.log("");
   console.log(`  ${bold(winner.label)} wins`);
   console.log(`  ${winner.label}  ${formatChange(winner.rating, winnerScore)}`);
   console.log(`  ${loser.label}  ${formatChange(loser.rating, loserScore)}`);
-  console.log('');
+  console.log("");
 }
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -60,24 +60,26 @@ const ask = (q: string): Promise<string> =>
   new Promise((resolve) => rl.question(q, resolve));
 
 async function main(): Promise<void> {
-  console.log(bold('\nElo algorithm demo — pick the winner of each matchup.\n'));
+  console.log(
+    bold("\nElo algorithm demo — pick the winner of each matchup.\n"),
+  );
 
   let playing = true;
   while (playing) {
-    const a = randomIdea('A');
-    const b = randomIdea('B');
+    const a = randomIdea("A");
+    const b = randomIdea("B");
     console.log(describe(a));
     console.log(describe(b));
 
-    const answer = (await ask('\nWho wins? (a / b, or q to quit) '))
+    const answer = (await ask("\nWho wins? (a / b, or q to quit) "))
       .trim()
       .toLowerCase();
 
-    if (answer === 'q') {
+    if (answer === "q") {
       playing = false;
-    } else if (answer === 'a') {
+    } else if (answer === "a") {
       showResult(a, b);
-    } else if (answer === 'b') {
+    } else if (answer === "b") {
       showResult(b, a);
     } else {
       console.log("Please type 'a', 'b', or 'q'.\n");
@@ -85,7 +87,7 @@ async function main(): Promise<void> {
   }
 
   rl.close();
-  console.log('Bye!');
+  console.log("Bye!");
 }
 
 main();
