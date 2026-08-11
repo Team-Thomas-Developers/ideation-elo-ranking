@@ -6,9 +6,8 @@ import { QtmaLogo } from '../components/dashboard/QtmaLogo'
 import { RoundStatus } from '../components/dashboard/RoundStatus'
 import { ScoreChart } from '../components/dashboard/ScoreChart'
 import { UserAuth } from '../context/AuthContext'
+import { getCategories } from '../lib/gameApi'
 import {
-  createRealtimeMockSnapshot,
-  dataSource,
   getCurrentRound,
   getLeaderboard,
   getScoreHistory,
@@ -19,8 +18,8 @@ import '../dashboard.css'
 const Dashboard = () => {
   const { session, signOut } = UserAuth()
   const navigate = useNavigate()
-  const [baseLeaderboard, setBaseLeaderboard] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
+  const [categories, setCategories] = useState([])
   const [scoreHistory, setScoreHistory] = useState([])
   const [round, setRound] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -31,21 +30,21 @@ const Dashboard = () => {
   useEffect(() => {
     async function loadData() {
       try {
-        const [[leaderboardRows, historyRows, activeRound]] = await Promise.all(
-          [
+        const [[leaderboardRows, historyRows, activeRound, categoriesRes]] =
+          await Promise.all([
             Promise.all([
               getLeaderboard(),
               getScoreHistory(),
               getCurrentRound(),
+              getCategories(),
             ]),
             new Promise((resolve) => setTimeout(resolve, 1200)),
-          ],
-        )
+          ])
 
-        setBaseLeaderboard(leaderboardRows)
         setLeaderboard(leaderboardRows)
         setScoreHistory(historyRows)
         setRound(activeRound)
+        setCategories(categoriesRes.data ?? [])
       } catch (error) {
         setLoadError(error.message || 'Unable to load Supabase data.')
       } finally {
@@ -55,20 +54,6 @@ const Dashboard = () => {
 
     loadData()
   }, [])
-
-  useEffect(() => {
-    if (dataSource === 'Supabase' || baseLeaderboard.length === 0) {
-      return undefined
-    }
-
-    let tick = 0
-    const intervalId = setInterval(() => {
-      tick += 1
-      setLeaderboard(createRealtimeMockSnapshot(baseLeaderboard, tick))
-    }, 2500)
-
-    return () => clearInterval(intervalId)
-  }, [baseLeaderboard])
 
   const handleSignOut = async () => {
     await signOut()
@@ -91,10 +76,6 @@ const Dashboard = () => {
           <h1>Leaderboard + Real-time Scoring</h1>
         </div>
         <div className="header-actions">
-          <div className="header-stat">
-            <span>Data Source</span>
-            <strong>{dataSource}</strong>
-          </div>
           <Link className="sign-out-button header-link" to="/">
             Home
           </Link>
@@ -123,8 +104,8 @@ const Dashboard = () => {
         <>
           <RoundStatus round={round} />
           <div className="dashboard-grid">
-            <Leaderboard rows={leaderboard} />
-            <ScoreChart history={scoreHistory} teams={baseLeaderboard} />
+            <Leaderboard rows={leaderboard} categories={categories} />
+            <ScoreChart history={scoreHistory} teams={leaderboard} />
           </div>
           <PredictionMarkets rows={leaderboard} round={round} />
         </>

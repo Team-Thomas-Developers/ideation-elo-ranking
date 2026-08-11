@@ -33,6 +33,8 @@ export const getIdeas = () => request('/ideas')
 
 export const getCategories = () => request('/categories')
 
+export const getLeaderboard = () => request('/leaderboard')
+
 // winnersByCategory: { <categoryId>: <winnerIdeaId> } for all categories
 export const voteMatchup = (matchupId, winnersByCategory) =>
   request('/votes', {

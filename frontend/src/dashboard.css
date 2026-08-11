@@ -325,6 +325,39 @@ select {
   margin-bottom: 16px;
 }
 
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.category-tab {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e3;
+  border-radius: 999px;
+  color: #172033;
+  background: #ffffff;
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    background 180ms ease;
+}
+
+.category-tab:hover {
+  border-color: #246bfe;
+  color: #246bfe;
+}
+
+.category-tab.is-selected {
+  border-color: #246bfe;
+  color: #ffffff;
+  background: #246bfe;
+}
+
 .table-shell {
   overflow-x: hidden;
 }
