@@ -30,17 +30,16 @@ const Dashboard = () => {
   useEffect(() => {
     async function loadData() {
       try {
-        const [
-          [leaderboardRows, historyRows, activeRound, categoriesRes],
-        ] = await Promise.all([
-          Promise.all([
-            getLeaderboard(),
-            getScoreHistory(),
-            getCurrentRound(),
-            getCategories(),
-          ]),
-          new Promise((resolve) => setTimeout(resolve, 1200)),
-        ])
+        const [[leaderboardRows, historyRows, activeRound, categoriesRes]] =
+          await Promise.all([
+            Promise.all([
+              getLeaderboard(),
+              getScoreHistory(),
+              getCurrentRound(),
+              getCategories(),
+            ]),
+            new Promise((resolve) => setTimeout(resolve, 1200)),
+          ])
 
         setLeaderboard(leaderboardRows)
         setScoreHistory(historyRows)

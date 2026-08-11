@@ -5,8 +5,7 @@ function rankByCategory(rows, categoryId) {
     .map((team) => ({
       ...team,
       categoryRating:
-        team.scores?.find((s) => s.category_id === categoryId)?.rating5 ??
-        null,
+        team.scores?.find((s) => s.category_id === categoryId)?.rating5 ?? null,
     }))
     .sort((a, b) => (b.categoryRating ?? 0) - (a.categoryRating ?? 0))
 }
