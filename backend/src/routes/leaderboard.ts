@@ -1,15 +1,17 @@
-import { Router } from 'express';
-import { supabase } from '../lib/supabase';
-import { computeRatings } from '../lib/rating';
+import { Router } from "express";
+import { supabase } from "../lib/supabase";
+import { computeRatings } from "../lib/rating";
 
 const router = Router();
 
 const LEADERBOARD_SELECT =
-  'id, title, curr_score, curr_rank, idea_scores(category_id, curr_score, curr_rank)';
+  "id, title, curr_score, curr_rank, idea_scores(category_id, curr_score, curr_rank)";
 
 // Current standings: every idea with its overall + per-category /5 ratings.
-router.get('/', async (_req, res) => {
-  const { data, error } = await supabase.from('ideas').select(LEADERBOARD_SELECT);
+router.get("/", async (_req, res) => {
+  const { data, error } = await supabase
+    .from("ideas")
+    .select(LEADERBOARD_SELECT);
   if (error) {
     res.status(500).json({ error: error.message });
     return;
@@ -43,16 +45,16 @@ router.get('/', async (_req, res) => {
 });
 
 // Score and rank history ordered chronologically for the leaderboard chart.
-router.get('/history', async (_req, res) => {
+router.get("/history", async (_req, res) => {
   try {
     const [
       { data: historyRows, error: historyError },
       { data: rounds, error: roundsError },
     ] = await Promise.all([
       supabase
-        .from('scorehistory')
-        .select('id, idea_id, round_id, score_after_round, rank_after_round'),
-      supabase.from('rounds').select('id, round_num'),
+        .from("scorehistory")
+        .select("id, idea_id, round_id, score_after_round, rank_after_round"),
+      supabase.from("rounds").select("id, round_num"),
     ]);
 
     if (historyError) throw historyError;

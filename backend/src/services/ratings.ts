@@ -3,11 +3,11 @@
 // `idea_scores` table. A matchup vote records a winner per category, and the
 // idea's overall rank comes from the mean of its five /5 category ratings
 
-import { supabase } from '../lib/supabase';
-import { calculateNewRatings } from '../elo/elo';
-import { CATEGORY_IDS } from '../lib/categories';
-import { computeRatings } from '../lib/rating';
-import { Matchup } from '../types';
+import { supabase } from "../lib/supabase";
+import { calculateNewRatings } from "../elo/elo";
+import { CATEGORY_IDS } from "../lib/categories";
+import { computeRatings } from "../lib/rating";
+import { Matchup } from "../types";
 
 export interface CategorySide {
   id: string;
@@ -33,9 +33,9 @@ export async function countMatchupsPlayed(
   categoryId: string,
 ): Promise<number> {
   const { count, error } = await supabase
-    .from('votes')
-    .select('id', { count: 'exact', head: true })
-    .eq('category_id', categoryId)
+    .from("votes")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", categoryId)
     .or(`winner_id.eq.${ideaId},loser_id.eq.${ideaId}`);
 
   if (error) throw error;
@@ -51,10 +51,10 @@ async function applyCategoryVote(
   const loserId = winnerId === matchup.idea_a ? matchup.idea_b : matchup.idea_a;
 
   const { data, error } = await supabase
-    .from('idea_scores')
-    .select('idea_id, curr_score')
-    .eq('category_id', categoryId)
-    .in('idea_id', [winnerId, loserId]);
+    .from("idea_scores")
+    .select("idea_id, curr_score")
+    .eq("category_id", categoryId)
+    .in("idea_id", [winnerId, loserId]);
   if (error) throw error;
   const winner = (data ?? []).find((s) => s.idea_id === winnerId);
   const loser = (data ?? []).find((s) => s.idea_id === loserId);
@@ -75,20 +75,20 @@ async function applyCategoryVote(
 
   const [w, l] = await Promise.all([
     supabase
-      .from('idea_scores')
+      .from("idea_scores")
       .update({ curr_score: winnerScore, updated_at: new Date().toISOString() })
-      .eq('category_id', categoryId)
-      .eq('idea_id', winnerId),
+      .eq("category_id", categoryId)
+      .eq("idea_id", winnerId),
     supabase
-      .from('idea_scores')
+      .from("idea_scores")
       .update({ curr_score: loserScore, updated_at: new Date().toISOString() })
-      .eq('category_id', categoryId)
-      .eq('idea_id', loserId),
+      .eq("category_id", categoryId)
+      .eq("idea_id", loserId),
   ]);
   if (w.error) throw w.error;
   if (l.error) throw l.error;
 
-  const { error: voteError } = await supabase.from('votes').insert({
+  const { error: voteError } = await supabase.from("votes").insert({
     matchup_id: matchup.id,
     user_id: matchup.user_id,
     winner_id: winnerId,
@@ -99,18 +99,26 @@ async function applyCategoryVote(
 
   return {
     category_id: categoryId,
-    winner: { id: winnerId, score_before: winner.curr_score, score_after: winnerScore },
-    loser: { id: loserId, score_before: loser.curr_score, score_after: loserScore },
+    winner: {
+      id: winnerId,
+      score_before: winner.curr_score,
+      score_after: winnerScore,
+    },
+    loser: {
+      id: loserId,
+      score_before: loser.curr_score,
+      score_after: loserScore,
+    },
   };
 }
 
 // re-rank every idea within one category (1 = highest score)
 async function recomputeCategoryRanks(categoryId: string): Promise<void> {
   const { data: scores, error } = await supabase
-    .from('idea_scores')
-    .select('idea_id, curr_rank')
-    .eq('category_id', categoryId)
-    .order('curr_score', { ascending: false });
+    .from("idea_scores")
+    .select("idea_id, curr_rank")
+    .eq("category_id", categoryId)
+    .order("curr_score", { ascending: false });
   if (error) throw error;
   if (!scores) return;
 
@@ -118,10 +126,10 @@ async function recomputeCategoryRanks(categoryId: string): Promise<void> {
     const rank = i + 1;
     if (scores[i].curr_rank !== rank) {
       const { error: updateError } = await supabase
-        .from('idea_scores')
+        .from("idea_scores")
         .update({ curr_rank: rank })
-        .eq('category_id', categoryId)
-        .eq('idea_id', scores[i].idea_id);
+        .eq("category_id", categoryId)
+        .eq("idea_id", scores[i].idea_id);
       if (updateError) throw updateError;
     }
   }
@@ -130,16 +138,19 @@ async function recomputeCategoryRanks(categoryId: string): Promise<void> {
 // recompute each idea's overall: curr_score = raw avg ELO (for the score chart),
 // curr_rank = order by the overall /5 rating (mean of the five category ratings)
 export async function recomputeOverall(): Promise<void> {
-  const { data: ideas, error } = await supabase.from('ideas').select('id');
+  const { data: ideas, error } = await supabase.from("ideas").select("id");
   if (error) throw error;
   if (!ideas) return;
 
   const { data: allScores, error: scoresError } = await supabase
-    .from('idea_scores')
-    .select('idea_id, category_id, curr_score');
+    .from("idea_scores")
+    .select("idea_id, category_id, curr_score");
   if (scoresError) throw scoresError;
 
-  const scoresByIdea = new Map<string, { category_id: string; curr_score: number }[]>();
+  const scoresByIdea = new Map<
+    string,
+    { category_id: string; curr_score: number }[]
+  >();
   for (const row of allScores ?? []) {
     const list = scoresByIdea.get(row.idea_id) ?? [];
     list.push({ category_id: row.category_id, curr_score: row.curr_score });
@@ -166,9 +177,12 @@ export async function recomputeOverall(): Promise<void> {
 
   for (let i = 0; i < ordered.length; i++) {
     const { error: updateError } = await supabase
-      .from('ideas')
-      .update({ curr_rank: i + 1, curr_score: Math.round(rawAvg(ordered[i].id)) })
-      .eq('id', ordered[i].id);
+      .from("ideas")
+      .update({
+        curr_rank: i + 1,
+        curr_score: Math.round(rawAvg(ordered[i].id)),
+      })
+      .eq("id", ordered[i].id);
     if (updateError) throw updateError;
   }
 }
@@ -190,26 +204,30 @@ export async function applyMatchupVotes(
   const categories: CategoryOutcome[] = [];
   for (const categoryId of CATEGORY_IDS) {
     categories.push(
-      await applyCategoryVote(matchup, categoryId, winnersByCategory[categoryId]),
+      await applyCategoryVote(
+        matchup,
+        categoryId,
+        winnersByCategory[categoryId],
+      ),
     );
   }
 
   const { error: closeError } = await supabase
-    .from('matchups')
+    .from("matchups")
     .update({ status: true })
-    .eq('id', matchup.id);
+    .eq("id", matchup.id);
   if (closeError) throw closeError;
 
   await recomputeAllRanks();
 
   // snapshot the two ideas' overall score/rank for the score-history chart
   const { data: updated, error: updatedError } = await supabase
-    .from('ideas')
-    .select('id, curr_score, curr_rank')
-    .in('id', [matchup.idea_a, matchup.idea_b]);
+    .from("ideas")
+    .select("id, curr_score, curr_rank")
+    .in("id", [matchup.idea_a, matchup.idea_b]);
   if (updatedError) throw updatedError;
 
-  const { error: historyError } = await supabase.from('scorehistory').insert(
+  const { error: historyError } = await supabase.from("scorehistory").insert(
     (updated ?? []).map((u) => ({
       idea_id: u.id,
       round_id: matchup.round_id,

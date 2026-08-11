@@ -2,7 +2,7 @@
 // normalisation is min-max within each category: the lowest-scoring idea in a
 // category maps to 1, the highest to 5. Shared by the ratings service (to store
 // overall ranks) and the ideas route
-import { CATEGORY_IDS } from './categories';
+import { CATEGORY_IDS } from "./categories";
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -39,8 +39,10 @@ export function computeRatings(
   const bounds = new Map<string, { min: number; max: number }>();
   for (const categoryId of CATEGORY_IDS) {
     const values = ideas
-      .map((i) => i.scores.find((s) => s.category_id === categoryId)?.curr_score)
-      .filter((v): v is number => typeof v === 'number');
+      .map(
+        (i) => i.scores.find((s) => s.category_id === categoryId)?.curr_score,
+      )
+      .filter((v): v is number => typeof v === "number");
     if (values.length === 0) continue;
     bounds.set(categoryId, {
       min: Math.min(...values),

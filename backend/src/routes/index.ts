@@ -1,24 +1,24 @@
-import { Router } from 'express';
-import rounds from './rounds';
-import matchups from './matchups';
-import votes from './votes';
-import ideas from './ideas';
-import parties from './parties';
-import leaderboard from './leaderboard';
-import categories from './categories';
+import { Router } from "express";
+import rounds from "./rounds";
+import matchups from "./matchups";
+import votes from "./votes";
+import ideas from "./ideas";
+import parties from "./parties";
+import leaderboard from "./leaderboard";
+import categories from "./categories";
 
 const router = Router();
 
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+router.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
 });
 
-router.use('/rounds', rounds);
-router.use('/matchups', matchups);
-router.use('/votes', votes);
-router.use('/ideas', ideas);
-router.use('/parties', parties);
-router.use('/leaderboard', leaderboard);
-router.use('/categories', categories);
+router.use("/rounds", rounds);
+router.use("/matchups", matchups);
+router.use("/votes", votes);
+router.use("/ideas", ideas);
+router.use("/parties", parties);
+router.use("/leaderboard", leaderboard);
+router.use("/categories", categories);
 
 export default router;
