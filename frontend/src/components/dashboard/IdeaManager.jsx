@@ -102,13 +102,18 @@ export function IdeaManager({ session }) {
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(idea) {
+    const confirmed = window.confirm(
+      `Delete "${idea.title}"? This removes it from the rankings for everyone and cannot be undone.`,
+    )
+    if (!confirmed) return
+
     setError('')
 
     try {
-      await deleteIdea(token, id)
-      setIdeas((current) => current.filter((idea) => idea.id !== id))
-      if (editingId === id) resetForm()
+      await deleteIdea(token, idea.id)
+      setIdeas((current) => current.filter((item) => item.id !== idea.id))
+      if (editingId === idea.id) resetForm()
     } catch (deleteError) {
       setError(deleteError.message || 'Unable to delete idea.')
     }
@@ -187,22 +192,24 @@ export function IdeaManager({ session }) {
                 <h3>{idea.title}</h3>
                 {idea.description ? <p>{idea.description}</p> : null}
               </div>
-              <div className="idea-actions">
-                <button
-                  className="vote-button"
-                  type="button"
-                  onClick={() => startEdit(idea)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="vote-button secondary-button"
-                  type="button"
-                  onClick={() => handleDelete(idea.id)}
-                >
-                  Delete
-                </button>
-              </div>
+              {idea.can_edit ? (
+                <div className="idea-actions">
+                  <button
+                    className="vote-button"
+                    type="button"
+                    onClick={() => startEdit(idea)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="vote-button secondary-button"
+                    type="button"
+                    onClick={() => handleDelete(idea)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
