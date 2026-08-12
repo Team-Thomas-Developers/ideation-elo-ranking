@@ -4,7 +4,8 @@ create table if not exists ideas (
   title       text not null,
   "desc"      text,                              -- quoted: `desc` is a reserved word
   curr_score  integer not null default 1200,     -- mirrors STARTING_ELO in src/elo/elo.ts
-  curr_rank   integer                            -- recomputed after every vote (recomputeRanks)
+  curr_rank   integer,                           -- recomputed after every vote (recomputeRanks)
+  created_by  uuid references users (id)         -- author; only they or a host may edit/delete
 );
 
 -- A voting round. status = true means open/active.

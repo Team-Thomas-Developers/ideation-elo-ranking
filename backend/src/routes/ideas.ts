@@ -7,12 +7,13 @@ import { CATEGORY_IDS } from "../lib/categories";
 import { computeRatings } from "../lib/rating";
 
 const router = Router();
-// Matches the ideas table schema (no created_by/created_at columns — see elo_schema.sql).
-const IDEA_SELECT = "id, title, desc, curr_score, curr_rank";
+const IDEA_SELECT = "id, title, desc, curr_score, curr_rank, created_by";
 // list select also pulls each idea's per-category ELO for /5 rating
 const IDEA_LIST_SELECT =
   IDEA_SELECT + ", idea_scores(category_id, curr_score, curr_rank)";
 
+// created_by is deliberately not exposed: GET / is public, and the client only
+// needs the can_edit flag that /mine derives from it.
 function ideaPayload(row: any) {
   return {
     id: row.id,
@@ -25,6 +26,57 @@ function ideaPayload(row: any) {
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+// A room host curates the idea pool for their session, so they may edit any
+// idea. Everyone else is limited to ideas they submitted themselves.
+async function isHost(userId: string) {
+  const { data, error } = await supabase
+    .from("parties")
+    .select("id")
+    .eq("leader_id", userId)
+    .neq("status", "done")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+// Ideas predating created_by have no recorded author, so only a host can
+// manage them — otherwise they would stay editable by anyone.
+async function canManageIdea(userId: string, createdBy: string | null) {
+  if (createdBy && createdBy === userId) return true;
+  return isHost(userId);
+}
+
+// Deleting an idea that a running party is still voting on destroys the votes
+// cast for its opponents and can strand players on a matchup that no longer
+// exists, so it is refused until the session finishes.
+async function isIdeaInActiveGame(ideaId: string) {
+  const { data: parties, error: partiesError } = await supabase
+    .from("parties")
+    .select("id")
+    .eq("status", "active");
+  if (partiesError) throw partiesError;
+  const partyIds = (parties ?? []).map((party) => party.id);
+  if (partyIds.length === 0) return false;
+
+  const { data: rounds, error: roundsError } = await supabase
+    .from("rounds")
+    .select("id")
+    .in("party_id", partyIds);
+  if (roundsError) throw roundsError;
+  const roundIds = (rounds ?? []).map((round) => round.id);
+  if (roundIds.length === 0) return false;
+
+  const { data: matchups, error: matchupsError } = await supabase
+    .from("matchups")
+    .select("id")
+    .in("round_id", roundIds)
+    .or(`idea_a.eq.${ideaId},idea_b.eq.${ideaId}`)
+    .limit(1);
+  if (matchupsError) throw matchupsError;
+  return (matchups ?? []).length > 0;
 }
 
 // ideas ranked by overall /5, best first, each with per-category /5 breakdown
@@ -70,7 +122,14 @@ router.get("/mine", async (req, res) => {
     .order("curr_rank", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json((data ?? []).map(ideaPayload));
+
+  const host = await isHost(user.id);
+  res.json(
+    (data ?? []).map((row: any) => ({
+      ...ideaPayload(row),
+      can_edit: host || row.created_by === user.id,
+    })),
+  );
 });
 
 router.post("/", async (req, res) => {
@@ -101,6 +160,7 @@ router.post("/", async (req, res) => {
       desc: description,
       curr_score: STARTING_ELO,
       curr_rank: 0,
+      created_by: user.id,
     })
     .select(IDEA_SELECT)
     .single();
@@ -144,13 +204,19 @@ router.patch("/:ideaId", async (req, res) => {
 
   const { data: existing, error: existingError } = await supabase
     .from("ideas")
-    .select("id")
+    .select("id, created_by")
     .eq("id", req.params.ideaId)
     .maybeSingle();
 
   if (existingError)
     return res.status(500).json({ error: existingError.message });
   if (!existing) return res.status(404).json({ error: "idea not found" });
+
+  if (!(await canManageIdea(user.id, existing.created_by))) {
+    return res
+      .status(403)
+      .json({ error: "only the idea's author or the room host can edit it" });
+  }
 
   const { data: duplicateIdea, error: duplicateError } = await supabase
     .from("ideas")
@@ -186,7 +252,7 @@ router.delete("/:ideaId", async (req, res) => {
 
   const { data: existing, error: existingError } = await supabase
     .from("ideas")
-    .select("id")
+    .select("id, created_by")
     .eq("id", req.params.ideaId)
     .maybeSingle();
 
@@ -194,7 +260,19 @@ router.delete("/:ideaId", async (req, res) => {
     return res.status(500).json({ error: existingError.message });
   if (!existing) return res.status(404).json({ error: "idea not found" });
 
+  if (!(await canManageIdea(user.id, existing.created_by))) {
+    return res
+      .status(403)
+      .json({ error: "only the idea's author or the room host can delete it" });
+  }
+
   const ideaId = req.params.ideaId;
+
+  if (await isIdeaInActiveGame(ideaId)) {
+    return res.status(409).json({
+      error: "this idea is being voted on right now; delete it after the game",
+    });
+  }
 
   const { error: votesError } = await supabase
     .from("votes")
